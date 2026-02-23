@@ -1,0 +1,67 @@
+{
+  "name": "leader",
+  "description": "Lead architect agent — researches, designs, specs, and plans. Delegates implementation to specialized subagents.",
+  "prompt": "file://agents/leader.md",
+  "mcpServers": {
+    "aws-knowledge-mcp-server": {
+      "url": "https://knowledge-mcp.global.api.aws",
+      "type": "http",
+      "disabled": false
+    },
+    "awslabs.document-loader-mcp-server": {
+      "command": "uvx",
+      "timeout": 200000,
+      "args": [
+        "--python",
+        "3.13",
+        "awslabs.document-loader-mcp-server@latest"
+      ],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      }
+    },
+    "awslabs.aws-iac-mcp-server": {
+      "command": "uvx",
+      "timeout": 20000,
+      "args": ["awslabs.aws-iac-mcp-server@latest"],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      }
+    },
+    "context7": {
+      "command": "npx",
+      "timeout": 200000,
+      "args": ["-y", "@upstash/context7-mcp"],
+      "autoApprove": ["*"]
+    },
+    "deepwiki": {
+      "url": "https://mcp.deepwiki.com/mcp",
+      "autoApprove": ["*"]
+    }
+  },
+  "tools": ["*"],
+  "toolAliases": {},
+  "allowedTools": [
+    "@builtin",
+    "@aws-knowledge-mcp-server",
+    "@awslabs.document-loader-mcp-server",
+    "@awslabs.aws-iac-mcp-server",
+    "@context7",
+    "@deepwiki"
+  ],
+  "resources": [
+    "file://.kiro/steering/**/*.md",
+    "file://~/.kiro/steering/**/*.md",
+    "skill://.kiro/skills/**/SKILL.md",
+    "skill://~/.kiro/skills/**/SKILL.md"
+  ],
+  "hooks": {},
+  "toolsSettings": {
+    "subagent": {
+      "availableAgents": ["coder", "reviewer", "ops"],
+      "trustedAgents": ["coder", "reviewer", "ops"]
+    }
+  },
+  "useLegacyMcpJson": false,
+  "model": "claude-opus-4.5"
+}

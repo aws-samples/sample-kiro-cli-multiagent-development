@@ -1,0 +1,5 @@
+{
+  "chat.defaultAgent": "leader",
+  "chat.defaultModel": "auto",
+  "chat.enableNotifications": true
+}

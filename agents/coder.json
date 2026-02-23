@@ -1,0 +1,39 @@
+{
+  "name": "coder",
+  "description": "Implementation agent — writes production code and tests from specs and task definitions.",
+  "prompt": "file://agents/coder.md",
+  "mcpServers": {
+    "aws-knowledge-mcp-server": {
+      "url": "https://knowledge-mcp.global.api.aws",
+      "type": "http",
+      "disabled": false
+    },
+    "awslabs.aws-iac-mcp-server": {
+      "command": "uvx",
+      "timeout": 20000,
+      "args": ["awslabs.aws-iac-mcp-server@latest"],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      }
+    },
+    "context7": {
+      "command": "npx",
+      "timeout": 200000,
+      "args": ["-y", "@upstash/context7-mcp"],
+      "autoApprove": ["*"]
+    }
+  },
+  "tools": ["*"],
+  "toolAliases": {},
+  "allowedTools": ["@builtin", "@aws-knowledge-mcp-server", "@awslabs.aws-iac-mcp-server", "@context7"],
+  "resources": [
+    "file://.kiro/steering/**/*.md",
+    "file://~/.kiro/steering/**/*.md",
+    "skill://.kiro/skills/**/SKILL.md",
+    "skill://~/.kiro/skills/**/SKILL.md"
+  ],
+  "hooks": {},
+  "toolsSettings": {},
+  "useLegacyMcpJson": false,
+  "model": "claude-sonnet-4.5"
+}

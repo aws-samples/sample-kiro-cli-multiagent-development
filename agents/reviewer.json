@@ -1,0 +1,31 @@
+{
+  "name": "reviewer",
+  "description": "Code review agent — analyzes implementations for correctness, security, and maintainability.",
+  "prompt": "file://agents/reviewer.md",
+  "mcpServers": {
+    "aws-knowledge-mcp-server": {
+      "url": "https://knowledge-mcp.global.api.aws",
+      "type": "http",
+      "disabled": false
+    },
+    "context7": {
+      "command": "npx",
+      "timeout": 200000,
+      "args": ["-y", "@upstash/context7-mcp"],
+      "autoApprove": ["*"]
+    }
+  },
+  "tools": ["*"],
+  "toolAliases": {},
+  "allowedTools": ["@builtin", "@aws-knowledge-mcp-server", "@context7"],
+  "resources": [
+    "file://.kiro/steering/**/*.md",
+    "file://~/.kiro/steering/**/*.md",
+    "skill://.kiro/skills/**/SKILL.md",
+    "skill://~/.kiro/skills/**/SKILL.md"
+  ],
+  "hooks": {},
+  "toolsSettings": {},
+  "useLegacyMcpJson": false,
+  "model": "claude-opus-4.5"
+}
