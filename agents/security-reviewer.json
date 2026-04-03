@@ -1,22 +1,12 @@
 {
-  "name": "coder",
-  "description": "Implementation agent \u2014 writes production code and tests from specs and task definitions.",
-  "prompt": "file://agents/coder.md",
+  "name": "security-reviewer",
+  "description": "Security review agent \u2014 analyzes implementations exclusively for vulnerabilities, misconfigurations, and compliance risks.",
+  "prompt": "file://agents/security-reviewer.md",
   "mcpServers": {
     "aws-knowledge-mcp-server": {
       "url": "https://knowledge-mcp.global.api.aws",
       "type": "http",
       "disabled": false
-    },
-    "awslabs.aws-iac-mcp-server": {
-      "command": "uvx",
-      "timeout": 20000,
-      "args": [
-        "awslabs.aws-iac-mcp-server@latest"
-      ],
-      "env": {
-        "FASTMCP_LOG_LEVEL": "ERROR"
-      }
     },
     "context7": {
       "command": "npx",
@@ -37,7 +27,6 @@
   "allowedTools": [
     "@builtin",
     "@aws-knowledge-mcp-server",
-    "@awslabs.aws-iac-mcp-server",
     "@context7"
   ],
   "resources": [
@@ -60,23 +49,8 @@
     "preToolUse": [
       {
         "matcher": "fs_write",
-        "command": ".kiro/hooks/check-dependency-pins.sh",
-        "description": "Block writes to dependency files with unpinned versions"
-      },
-      {
-        "matcher": "fs_write",
-        "command": ".kiro/hooks/check-secrets.sh",
-        "description": "Block writes containing secrets or API keys"
-      },
-      {
-        "matcher": "fs_write",
         "command": ".kiro/hooks/config-drift-guard.sh",
         "description": "Block writes to steering/skills/agents without approval"
-      },
-      {
-        "matcher": "execute_bash",
-        "command": ".kiro/hooks/guard-destructive-commands.sh",
-        "description": "Block dangerous shell commands"
       }
     ],
     "stop": [
@@ -88,5 +62,5 @@
   },
   "toolsSettings": {},
   "useLegacyMcpJson": false,
-  "model": "claude-sonnet-4.5"
+  "model": "claude-opus-4.5"
 }

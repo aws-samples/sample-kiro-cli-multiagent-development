@@ -1,6 +1,6 @@
 {
   "name": "reviewer",
-  "description": "Code review agent — analyzes implementations for correctness, security, and maintainability.",
+  "description": "Code review agent \u2014 analyzes implementations for correctness, security, and maintainability.",
   "prompt": "file://agents/reviewer.md",
   "mcpServers": {
     "aws-knowledge-mcp-server": {
@@ -11,20 +11,55 @@
     "context7": {
       "command": "npx",
       "timeout": 200000,
-      "args": ["-y", "@upstash/context7-mcp"],
-      "autoApprove": ["*"]
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ],
+      "autoApprove": [
+        "*"
+      ]
     }
   },
-  "tools": ["*"],
+  "tools": [
+    "*"
+  ],
   "toolAliases": {},
-  "allowedTools": ["@builtin", "@aws-knowledge-mcp-server", "@context7"],
+  "allowedTools": [
+    "@builtin",
+    "@aws-knowledge-mcp-server",
+    "@context7"
+  ],
   "resources": [
     "file://.kiro/steering/**/*.md",
-    "file://~/.kiro/steering/**/*.md",
-    "skill://.kiro/skills/**/SKILL.md",
-    "skill://~/.kiro/skills/**/SKILL.md"
+    "skill://.kiro/skills/**/SKILL.md"
   ],
-  "hooks": {},
+  "hooks": {
+    "agentSpawn": [
+      {
+        "command": ".kiro/hooks/validate-environment.sh",
+        "description": "Check required tools are installed"
+      }
+    ],
+    "userPromptSubmit": [
+      {
+        "command": ".kiro/hooks/git-context.sh",
+        "description": "Inject git status into context"
+      }
+    ],
+    "preToolUse": [
+      {
+        "matcher": "fs_write",
+        "command": ".kiro/hooks/config-drift-guard.sh",
+        "description": "Block writes to steering/skills/agents without approval"
+      }
+    ],
+    "stop": [
+      {
+        "command": ".kiro/hooks/flywheel-log.sh",
+        "description": "Log turn summary for flywheel analysis"
+      }
+    ]
+  },
   "toolsSettings": {},
   "useLegacyMcpJson": false,
   "model": "claude-opus-4.5"

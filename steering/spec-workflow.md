@@ -16,6 +16,7 @@ Create a spec before any non-trivial work — if it touches multiple files, invo
   spec.md        # Design decisions, requirements, constraints
   tasks.md       # Parallelized task list for execution
   review.md      # Reviewer findings per cycle
+  security-review.md  # Security reviewer findings per cycle
   decisions.md   # Mid-flight decision log
   prd/           # Product requirements documents (when work involves product roadmap decisions)
     <descriptive-title>.md
@@ -194,6 +195,30 @@ Reviewing: Group 1 tasks
 
 Verdict is **FAIL** if any Critical or Warning findings exist, or tests are not passing. Otherwise **PASS**.
 
+## Security Review Format (`security-review.md`)
+
+The security reviewer writes findings here. The security review happens after the general review passes. Each cycle gets its own section.
+
+```markdown
+# Security Review: <Title>
+
+## Cycle 1 — <date>
+Reviewing: Groups 1-N
+
+### Critical
+- [file:line] Description of vulnerability and remediation
+
+### Warning
+- [file:line] Description of risk and recommended mitigation
+
+### Suggestion
+- [file:line] Description of hardening opportunity
+
+### Verdict: PASS | FAIL
+```
+
+Verdict is **FAIL** if any Critical or Warning security findings exist. Otherwise **PASS**.
+
 ## Decisions Log (`decisions.md`)
 
 Records decisions made during implementation that aren't significant enough for the spec but need to be tracked. Prevents the same question from being re-asked across cycles.
@@ -302,6 +327,7 @@ RESOLVED | MITIGATED | WONT_FIX
 3. **Verify completion** — confirm all tasks in the group are `[x]`
 4. **Run tests** — execute the test suite, confirm all tests pass
 5. **Review** — delegate to `reviewer`, who writes findings to `review.md`
+6. **Security review** — after the general review passes, delegate to `security-reviewer`, who writes findings to `security-review.md`. Do NOT proceed until both reviews pass.
 
 ### Phase 3: Fix (if needed)
 1. **Read `.kiro/specs/currentspec.md`** to resolve the active spec
@@ -315,6 +341,8 @@ RESOLVED | MITIGATED | WONT_FIX
 The loop stops when ALL of the following are true:
 - **Zero critical findings** in the latest review cycle
 - **Zero warnings** in the latest review cycle
+- **Zero critical findings** in the latest security review cycle
+- **Zero warnings** in the latest security review cycle
 - **All tests passing**
 - **All tasks marked `[x]`**
 

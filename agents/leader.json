@@ -1,6 +1,6 @@
 {
   "name": "leader",
-  "description": "Lead architect agent — researches, designs, specs, and plans. Delegates implementation to specialized subagents.",
+  "description": "Lead architect agent \u2014 researches, designs, specs, and plans. Delegates implementation to specialized subagents.",
   "prompt": "file://agents/leader.md",
   "mcpServers": {
     "aws-knowledge-mcp-server": {
@@ -23,7 +23,9 @@
     "awslabs.aws-iac-mcp-server": {
       "command": "uvx",
       "timeout": 20000,
-      "args": ["awslabs.aws-iac-mcp-server@latest"],
+      "args": [
+        "awslabs.aws-iac-mcp-server@latest"
+      ],
       "env": {
         "FASTMCP_LOG_LEVEL": "ERROR"
       }
@@ -31,15 +33,24 @@
     "context7": {
       "command": "npx",
       "timeout": 200000,
-      "args": ["-y", "@upstash/context7-mcp"],
-      "autoApprove": ["*"]
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ],
+      "autoApprove": [
+        "*"
+      ]
     },
     "deepwiki": {
       "url": "https://mcp.deepwiki.com/mcp",
-      "autoApprove": ["*"]
+      "autoApprove": [
+        "*"
+      ]
     }
   },
-  "tools": ["*"],
+  "tools": [
+    "*"
+  ],
   "toolAliases": {},
   "allowedTools": [
     "@builtin",
@@ -51,15 +62,64 @@
   ],
   "resources": [
     "file://.kiro/steering/**/*.md",
-    "file://~/.kiro/steering/**/*.md",
-    "skill://.kiro/skills/**/SKILL.md",
-    "skill://~/.kiro/skills/**/SKILL.md"
+    "skill://.kiro/skills/**/SKILL.md"
   ],
-  "hooks": {},
+  "hooks": {
+    "agentSpawn": [
+      {
+        "command": ".kiro/hooks/validate-environment.sh",
+        "description": "Check required tools are installed"
+      }
+    ],
+    "userPromptSubmit": [
+      {
+        "command": ".kiro/hooks/git-context.sh",
+        "description": "Inject git status into context"
+      }
+    ],
+    "preToolUse": [
+      {
+        "matcher": "fs_write",
+        "command": ".kiro/hooks/check-dependency-pins.sh",
+        "description": "Block writes to dependency files with unpinned versions"
+      },
+      {
+        "matcher": "fs_write",
+        "command": ".kiro/hooks/check-secrets.sh",
+        "description": "Block writes containing secrets or API keys"
+      },
+      {
+        "matcher": "fs_write",
+        "command": ".kiro/hooks/config-drift-guard.sh",
+        "description": "Block writes to steering/skills/agents without approval"
+      },
+      {
+        "matcher": "execute_bash",
+        "command": ".kiro/hooks/guard-destructive-commands.sh",
+        "description": "Block dangerous shell commands"
+      }
+    ],
+    "stop": [
+      {
+        "command": ".kiro/hooks/flywheel-log.sh",
+        "description": "Log turn summary for flywheel analysis"
+      }
+    ]
+  },
   "toolsSettings": {
     "subagent": {
-      "availableAgents": ["coder", "reviewer", "ops"],
-      "trustedAgents": ["coder", "reviewer", "ops"]
+      "availableAgents": [
+        "coder",
+        "reviewer",
+        "security-reviewer",
+        "ops"
+      ],
+      "trustedAgents": [
+        "coder",
+        "reviewer",
+        "security-reviewer",
+        "ops"
+      ]
     }
   },
   "useLegacyMcpJson": false,
