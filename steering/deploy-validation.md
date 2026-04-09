@@ -41,3 +41,20 @@ if [ -n "$ERRORS" ]; then
 fi
 ok "Health check passed — no runtime errors"
 ```
+
+## Pre-Deploy Prerequisite Checks
+
+Before running any deploy script, verify that required services and tools are available. Do NOT blindly retry a failed deploy — diagnose the failure first.
+
+| Prerequisite | Check Command |
+|-------------|---------------|
+| Docker daemon | `docker info >/dev/null 2>&1` |
+| AWS credentials | `aws sts get-caller-identity >/dev/null 2>&1` |
+| CDK bootstrap | `aws cloudformation describe-stacks --stack-name CDKToolkit >/dev/null 2>&1` |
+| Node.js | `node --version >/dev/null 2>&1` |
+| Python venv | `test -d .venv && source .venv/bin/activate` |
+
+If a prerequisite check fails:
+1. Tell the user what is missing and how to fix it
+2. Do NOT retry the deploy until the user confirms the prerequisite is met
+3. After the user confirms, re-run the prerequisite check before retrying

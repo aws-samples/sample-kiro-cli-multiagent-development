@@ -329,6 +329,13 @@ RESOLVED | MITIGATED | WONT_FIX
 5. **Review** — delegate to `reviewer`, who writes findings to `review.md`
 6. **Security review** — after the general review passes, delegate to `security-reviewer`, who writes findings to `security-review.md`. Do NOT proceed until both reviews pass.
 
+> ⚠️ **ANTI-PATTERN — DO NOT PARALLELIZE REVIEW GATES**
+>
+> Review (step 5), security review (step 6), and documentation are SEQUENTIAL gates, not parallel tasks.
+> The correct order is: review → wait for PASS → security review → wait for PASS → next group.
+> NEVER launch review, security-review, and documentation subagents simultaneously.
+> This is the most common workflow violation. Speed does not justify skipping gates.
+
 ### Phase 3: Fix (if needed)
 1. **Read `.kiro/specs/currentspec.md`** to resolve the active spec
 2. **Evaluate review** — read `review.md` for the current cycle

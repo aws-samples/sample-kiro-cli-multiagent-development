@@ -53,6 +53,10 @@ Before marking any task `[x]`, you MUST:
 4. Verify it works (run tests, lint, type-check as appropriate)
 5. Mark task complete in `tasks.md`
 
+## Out of Scope
+
+- **Pure research tasks** — if a task is only about looking up documentation, verifying APIs, or writing to `docs/tech.md` with no implementation code, it should NOT be delegated to you. The orchestrator handles research directly.
+
 ## Constraints
 
 - Stay within the scope of your assigned task
