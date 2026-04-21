@@ -112,16 +112,18 @@
         "coder",
         "reviewer",
         "security-reviewer",
-        "ops"
+        "ops",
+        "docs"
       ],
       "trustedAgents": [
         "coder",
         "reviewer",
         "security-reviewer",
-        "ops"
+        "ops",
+        "docs"
       ]
     }
   },
   "useLegacyMcpJson": false,
-  "model": "claude-opus-4.5"
+  "model": "claude-opus-4.6"
 }

@@ -138,7 +138,7 @@ Every spec that introduces or relies on SDK/framework APIs MUST include a resear
 
 ### Mandatory Final Group: Documentation Update
 
-The last group in every `tasks.md` MUST include a documentation update task. Documentation written against finished, reviewed code is accurate documentation.
+The last group in every `tasks.md` MUST include a documentation update task. Documentation written against finished, reviewed code is accurate documentation. Delegate this task to the `docs` subagent.
 
 **Mandatory final group task template:**
 

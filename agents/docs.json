@@ -1,0 +1,46 @@
+{
+  "name": "docs",
+  "description": "Documentation agent — writes and updates README, architecture docs, runbooks, and inline documentation.",
+  "prompt": "file://agents/docs.md",
+  "mcpServers": {},
+  "tools": [
+    "*"
+  ],
+  "toolAliases": {},
+  "allowedTools": [
+    "@builtin"
+  ],
+  "resources": [
+    "file://.kiro/steering/**/*.md",
+    "skill://.kiro/skills/**/SKILL.md"
+  ],
+  "hooks": {
+    "agentSpawn": [
+      {
+        "command": ".kiro/hooks/validate-environment.sh",
+        "description": "Check required tools are installed"
+      }
+    ],
+    "preToolUse": [
+      {
+        "matcher": "fs_write",
+        "command": ".kiro/hooks/check-secrets.sh",
+        "description": "Block writes containing secrets or API keys"
+      },
+      {
+        "matcher": "fs_write",
+        "command": ".kiro/hooks/config-drift-guard.sh",
+        "description": "Block writes to steering/skills/agents without approval"
+      }
+    ],
+    "stop": [
+      {
+        "command": ".kiro/hooks/flywheel-log.sh",
+        "description": "Log turn summary for flywheel analysis"
+      }
+    ]
+  },
+  "toolsSettings": {},
+  "useLegacyMcpJson": false,
+  "model": "claude-haiku-4.5"
+}

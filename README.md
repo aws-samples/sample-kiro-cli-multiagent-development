@@ -8,29 +8,31 @@ This entire setup — agents, steering rules, skills, and prompts — was built 
 
 ## Overview
 
-This repo provides a sample `.kiro` configuration with five agents that work together:
+This repo provides a sample `.kiro` configuration with six agents that work together:
 
 | Agent | Role | Model |
 |-------|------|-------|
-| **leader** | Architect — researches, designs specs, creates plans, delegates work | claude-opus-4.5 |
-| **coder** | Implements features and writes tests from specs | claude-sonnet-4.5 |
-| **ops** | Infrastructure, CI/CD, containers, and documentation | claude-sonnet-4.5 |
-| **reviewer** | Reviews implementations for correctness, quality, and maintainability | claude-opus-4.5 |
-| **security-reviewer** | Reviews implementations exclusively for security vulnerabilities and misconfigurations | claude-opus-4.5 |
+| **leader** | Architect — researches, designs specs, creates plans, delegates work | claude-opus-4.6 |
+| **coder** | Implements features and writes tests from specs | claude-sonnet-4.6 |
+| **ops** | Infrastructure, CI/CD, containers, and documentation | claude-sonnet-4.6 |
+| **reviewer** | Reviews implementations for correctness, quality, and maintainability | claude-opus-4.6 |
+| **security-reviewer** | Reviews implementations exclusively for security vulnerabilities and misconfigurations | claude-opus-4.6 |
+| **docs** | Writes and updates documentation from completed spec work | claude-haiku-4.5 |
 
-The `leader` agent orchestrates the workflow: it writes specs, breaks work into parallelized task groups, delegates to `coder` and `ops` for implementation, then sends the results to `reviewer` and `security-reviewer` for feedback. This loop continues until both reviewers pass the work.
+The `leader` agent orchestrates the workflow: it writes specs, breaks work into parallelized task groups, delegates to `coder` and `ops` for implementation, then sends the results to `reviewer` and `security-reviewer` for feedback. Once reviews pass, `docs` updates the documentation. This loop continues until all groups are complete.
 
 ## How It Works
 
 ```
-leader (plan + research) → coder + ops (build in parallel) → reviewer (verify) → security-reviewer (security audit) → leader (next group or fix)
+leader (plan + research) → coder + ops (build in parallel) → reviewer (verify) → security-reviewer (security audit) → docs (update documentation) → leader (next group or fix)
 ```
 
 1. **Plan** — `leader` researches the problem, looks up SDK/framework APIs from live documentation, writes a spec, and creates a task plan
 2. **Build** — `leader` delegates task groups to `coder` and/or `ops` subagents in parallel
 3. **Review** — `reviewer` analyzes the implementation for correctness and quality
 4. **Security Review** — after the general review passes, `security-reviewer` audits for vulnerabilities, misconfigurations, and compliance risks
-5. **Fix** — if either review fails, `leader` creates fix tasks and loops back to build
+5. **Document** — `docs` updates README, architecture docs, and inline documentation to reflect the changes
+6. **Fix** — if either review fails, `leader` creates fix tasks and loops back to build
 
 Before any implementation begins, the leader conducts SDK/framework research using AWS documentation and Context7 to verify API signatures, import paths, and constructor conventions. Findings are written to the project's `docs/tech.md` so subagents code against verified contracts — not assumed APIs.
 
@@ -87,7 +89,8 @@ Local `.kiro/` takes precedence over global `~/.kiro/` — remove the local copy
 │   ├── coder.json / .md     # Coder agent config and prompt
 │   ├── ops.json / .md       # Ops agent config and prompt
 │   ├── reviewer.json / .md  # Reviewer agent config and prompt
-│   └── security-reviewer.json / .md  # Security reviewer config and prompt
+│   ├── security-reviewer.json / .md  # Security reviewer config and prompt
+│   └── docs.json / .md     # Documentation agent config and prompt
 ├── hooks/                   # Hook scripts — executed at agent lifecycle trigger points
 │   ├── check-dependency-pins.sh  # Block unpinned versions in dependency files
 │   ├── check-secrets.sh          # Block writes containing secrets or API keys
@@ -97,6 +100,9 @@ Local `.kiro/` takes precedence over global `~/.kiro/` — remove the local copy
 │   ├── guard-destructive-commands.sh  # Block dangerous shell commands
 │   └── validate-environment.sh   # Check required tools on agent spawn
 ├── prompts/                 # Stored prompts — reusable workflows invoked by name
+│   ├── execute.md           # Resume and run the current spec to completion
+│   ├── scope.md             # Start a new spec discussion with the leader agent
+│   ├── diagnose.md          # Test-first bug fixing from issues/ reports
 │   └── flywheel.md          # Session analysis → config improvement loop
 ├── steering/                # Global behavioral rules for all agents
 │   ├── spec-workflow.md     # Spec-driven development loop with dependency research
@@ -107,6 +113,7 @@ Local `.kiro/` takes precedence over global `~/.kiro/` — remove the local copy
 │   ├── virtual-environments.md  # Dependency isolation requirements
 │   ├── documentation.md     # Documentation requirements for every spec
 │   ├── testing.md           # Test-first development workflow
+│   ├── issue-tracking.md   # Issue documentation discipline for bugs and incidents
 │   └── latest-versions.md   # Use latest stable versions by default
 ├── skills/                  # Domain-specific knowledge files
 │   ├── agentcore-patterns/  # Amazon Bedrock AgentCore runtime, gateway, and memory patterns
@@ -148,6 +155,7 @@ Local `.kiro/` takes precedence over global `~/.kiro/` — remove the local copy
 | `virtual-environments.md` | Project dependency isolation per language (venv, node_modules, cargo, go mod) |
 | `documentation.md` | Every non-trivial change must include documentation updates; mandatory final group in every spec |
 | `testing.md` | Test-first development — define tests before or alongside implementation |
+| `issue-tracking.md` | Every bug fix or incident must be documented in `issues/` with report and summary |
 | `latest-versions.md` | Pin dependency versions, 7-day quarantine on new releases, security patch exception |
 
 ## Hooks
@@ -178,7 +186,18 @@ Hooks are shell scripts that fire at specific points during agent execution. The
 
 All log files use `0o600` permissions and 10MB rotation. Enforcement hooks are applied to agents that write code (leader, coder, ops). Context and observability hooks are applied to all agents.
 
-## The Flywheel
+## Prompts
+
+Prompts are reusable workflows you invoke by name during a chat session. Type `/prompts <name>` (or `@<name>`) to run one.
+
+| Prompt | Command | Purpose |
+|--------|---------|---------|
+| `execute` | `/prompts execute` | Resume and run the current spec — delegates task groups, runs reviews, loops until done |
+| `scope` | `/prompts scope` | Start a new spec discussion — gathers requirements interactively, writes spec and task plan |
+| `diagnose` | `/prompts diagnose` | Test-first bug fixing — reads `issues/` reports, writes a failing test, then fixes the code to pass it |
+| `flywheel` | `/prompts flywheel` | Analyzes recent sessions for correction patterns and proposes config improvements |
+
+### The Flywheel
 
 The `prompts/flywheel.md` prompt turns your session history into configuration improvements. Every time you correct the agent — "no, I meant...", "try again but...", "stop, use X instead" — that's a signal. The flywheel reads recent session logs, identifies correction patterns, cross-references your existing steering/skills/agent configs, and proposes targeted changes to prevent recurrence.
 
@@ -200,7 +219,7 @@ Run it periodically — weekly works well — or whenever you notice the agent r
 
 ```bash
 kiro-cli chat
-# then type: run flywheel
+# then type: /prompts flywheel
 ```
 
 Each approved change makes the next run's report shorter. Over time, the agent accumulates your preferences and conventions as persistent configuration rather than ephemeral context.
@@ -281,8 +300,12 @@ These features may change or be removed. See [Experimental Features](https://kir
 - **Add skills**: Create a `<name>/SKILL.md` in `skills/` — agents reference these for domain knowledge
 - **Add prompts**: Drop a markdown file in `prompts/` — reusable workflows you can invoke by name during a chat session
 - **Add hooks**: Create executable scripts in `hooks/` and reference them in agent JSON configs under the appropriate trigger (`preToolUse`, `postToolUse`, `stop`, `agentSpawn`, `userPromptSubmit`)
-- **Change models**: Edit the `model` field in each agent's JSON config. Available GA models: `auto`, `claude-opus-4.5`, `claude-sonnet-4.5`, `claude-sonnet-4.0`, `claude-haiku-4.5`
+- **Change models**: Edit the `model` field in each agent's JSON config. Available GA models: `auto`, `claude-opus-4.6`, `claude-sonnet-4.6`, `claude-sonnet-4.0`, `claude-haiku-4.5`
 - **Change default agent**: Edit `chat.defaultAgent` in `settings/cli.json`
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ## Security
 
