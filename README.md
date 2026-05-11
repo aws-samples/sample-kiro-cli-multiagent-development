@@ -275,17 +275,8 @@ Context7 provides live documentation lookup for any library or framework. DeepWi
 This configuration ships with GA (generally available) features only. To enhance the experience, you can opt into these experimental features:
 
 ```bash
-# Thinking tool — shows AI reasoning for complex problems
-kiro-cli settings chat.enableThinking true
-
 # Knowledge management — persistent context storage with semantic search
 kiro-cli settings chat.enableKnowledge true
-
-# Checkpointing — git-like snapshots of file changes during a session
-kiro-cli settings chat.enableCheckpoint true
-
-# Tangent mode — conversation checkpoints to explore side topics
-kiro-cli settings chat.enableTangentMode true
 
 # Context usage indicator — shows context window usage percentage in prompt
 kiro-cli settings chat.enableContextUsageIndicator true

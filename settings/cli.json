@@ -1,5 +1,7 @@
 {
   "chat.defaultAgent": "architect",
-  "chat.defaultModel": "auto",
+  "chat.defaultModel": "claude-opus-4-7",
+  "chat.enableSubagent": true,
+  "chat.enableThinking": true,
   "chat.enableNotifications": true
 }
