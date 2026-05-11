@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-05-11
+
+### Changed
+- Renamed `leader` agent to `architect` — better reflects the role (research, design, plan, delegate)
+- Updated models: architect uses claude-opus-4-7, ops uses claude-haiku-4-5
+- Delegation model now uses `/spawn` for parallel task execution (new TUI feature)
+- Added Opus 4.7-specific prompt optimizations: explicit tool-use guidance, stop conditions, scope statements
+
 ## 2026-04-21
 
 ### Added

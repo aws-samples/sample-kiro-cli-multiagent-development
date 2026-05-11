@@ -323,7 +323,7 @@ RESOLVED | MITIGATED | WONT_FIX
 
 ### Phase 2: Build (per group)
 1. **Read `.kiro/specs/currentspec.md`** to resolve the active spec slug and path
-2. **Delegate** — send group tasks to `coder` and/or `ops` subagents in parallel
+2. **Delegate via `/spawn`** — use `/spawn` to launch group tasks to `coder` and/or `ops` agents in parallel. Each spawned agent runs independently with its own context.
 3. **Verify completion** — confirm all tasks in the group are `[x]`
 4. **Run tests** — execute the test suite, confirm all tests pass
 5. **Review** — delegate to `reviewer`, who writes findings to `review.md`

@@ -22,12 +22,12 @@ Every non-trivial change must include documentation. Code without docs is unfini
 
 ## Task Planning Rules
 
-When creating `tasks.md`, the leader MUST:
+When creating `tasks.md`, the architect MUST:
 1. Include a mandatory documentation update task as the **final group** — see `spec-workflow.md` for the required template
 2. README updates go in the same group as the feature they document (for mid-spec updates) or in the final documentation group
 3. Architecture docs go in the first group (written alongside or before implementation)
 4. Runbooks go in the final group (after implementation is stable)
-5. For non-spec work (simple changes), the leader must still check for and perform documentation updates as part of the task
+5. For non-spec work (simple changes), the architect must still check for and perform documentation updates as part of the task
 
 ## Documentation Standards
 

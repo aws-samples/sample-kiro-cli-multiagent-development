@@ -12,29 +12,29 @@ This repo provides a sample `.kiro` configuration with six agents that work toge
 
 | Agent | Role | Model |
 |-------|------|-------|
-| **leader** | Architect — researches, designs specs, creates plans, delegates work | claude-opus-4.6 |
+| **architect** | Researches, designs specs, creates plans, delegates work | claude-opus-4-7 |
 | **coder** | Implements features and writes tests from specs | claude-sonnet-4.6 |
-| **ops** | Infrastructure, CI/CD, containers, and documentation | claude-sonnet-4.6 |
+| **ops** | Infrastructure, CI/CD, containers, and documentation | claude-haiku-4-5 |
 | **reviewer** | Reviews implementations for correctness, quality, and maintainability | claude-opus-4.6 |
 | **security-reviewer** | Reviews implementations exclusively for security vulnerabilities and misconfigurations | claude-opus-4.6 |
 | **docs** | Writes and updates documentation from completed spec work | claude-haiku-4.5 |
 
-The `leader` agent orchestrates the workflow: it writes specs, breaks work into parallelized task groups, delegates to `coder` and `ops` for implementation, then sends the results to `reviewer` and `security-reviewer` for feedback. Once reviews pass, `docs` updates the documentation. This loop continues until all groups are complete.
+The `architect` agent orchestrates the workflow: it writes specs, breaks work into parallelized task groups, delegates to `coder` and `ops` for implementation via `/spawn`, then sends the results to `reviewer` and `security-reviewer` for feedback. Once reviews pass, `docs` updates the documentation. This loop continues until all groups are complete.
 
 ## How It Works
 
 ```
-leader (plan + research) → coder + ops (build in parallel) → reviewer (verify) → security-reviewer (security audit) → docs (update documentation) → leader (next group or fix)
+architect (plan + research) → coder + ops (build in parallel via /spawn) → reviewer (verify) → security-reviewer (security audit) → docs (update documentation) → architect (next group or fix)
 ```
 
-1. **Plan** — `leader` researches the problem, looks up SDK/framework APIs from live documentation, writes a spec, and creates a task plan
-2. **Build** — `leader` delegates task groups to `coder` and/or `ops` subagents in parallel
+1. **Plan** — `architect` researches the problem, looks up SDK/framework APIs from live documentation, writes a spec, and creates a task plan
+2. **Build** — `architect` uses `/spawn` to delegate task groups to `coder` and/or `ops` subagents in parallel
 3. **Review** — `reviewer` analyzes the implementation for correctness and quality
 4. **Security Review** — after the general review passes, `security-reviewer` audits for vulnerabilities, misconfigurations, and compliance risks
 5. **Document** — `docs` updates README, architecture docs, and inline documentation to reflect the changes
-6. **Fix** — if either review fails, `leader` creates fix tasks and loops back to build
+6. **Fix** — if either review fails, `architect` creates fix tasks and loops back to build
 
-Before any implementation begins, the leader conducts SDK/framework research using AWS documentation and Context7 to verify API signatures, import paths, and constructor conventions. Findings are written to the project's `docs/tech.md` so subagents code against verified contracts — not assumed APIs.
+Before any implementation begins, the architect conducts SDK/framework research using AWS documentation and Context7 to verify API signatures, import paths, and constructor conventions. Findings are written to the project's `docs/tech.md` so subagents code against verified contracts — not assumed APIs.
 
 ## Quick Start
 
@@ -48,10 +48,10 @@ cd .kiro
 chmod +x hooks/*.sh
 ```
 
-3. Start a chat with the leader agent:
+3. Start a chat with the architect agent:
 
 ```bash
-kiro-cli chat --agent leader
+kiro-cli chat --agent architect
 ```
 
 Everything works immediately — agent prompts, steering rules, skills, and hooks all use relative paths.
@@ -67,9 +67,9 @@ chmod +x ~/.kiro/hooks/*.sh
 
 # Update agent prompt paths from relative to absolute
 # In each ~/.kiro/agents/*.json, change:
-#   "prompt": "file://agents/leader.md"
+#   "prompt": "file://agents/architect.md"
 # to:
-#   "prompt": "file:///Users/<you>/.kiro/agents/leader.md"
+#   "prompt": "file:///Users/<you>/.kiro/agents/architect.md"
 
 # Update hook paths from local to global
 # In each ~/.kiro/agents/*.json, change:
@@ -84,8 +84,8 @@ Local `.kiro/` takes precedence over global `~/.kiro/` — remove the local copy
 
 ```
 ├── agents/                  # Agent definitions (JSON config + markdown prompts)
-│   ├── leader.json          # Leader agent config (MCP servers, tools, subagent access)
-│   ├── leader.md            # Leader agent system prompt
+│   ├── architect.json       # Architect agent config (MCP servers, tools, subagent access)
+│   ├── architect.md         # Architect agent system prompt
 │   ├── coder.json / .md     # Coder agent config and prompt
 │   ├── ops.json / .md       # Ops agent config and prompt
 │   ├── reviewer.json / .md  # Reviewer agent config and prompt
@@ -101,7 +101,7 @@ Local `.kiro/` takes precedence over global `~/.kiro/` — remove the local copy
 │   └── validate-environment.sh   # Check required tools on agent spawn
 ├── prompts/                 # Stored prompts — reusable workflows invoked by name
 │   ├── execute.md           # Resume and run the current spec to completion
-│   ├── scope.md             # Start a new spec discussion with the leader agent
+│   ├── scope.md             # Start a new spec discussion with the architect agent
 │   ├── diagnose.md          # Test-first bug fixing from issues/ reports
 │   └── flywheel.md          # Session analysis → config improvement loop
 ├── steering/                # Global behavioral rules for all agents
@@ -184,7 +184,7 @@ Hooks are shell scripts that fire at specific points during agent execution. The
 |------|---------|---------|
 | `flywheel-log.sh` | `stop` | Logs turn summaries to `~/.kiro/flywheel-log.jsonl` for the [flywheel prompt](#the-flywheel). |
 
-All log files use `0o600` permissions and 10MB rotation. Enforcement hooks are applied to agents that write code (leader, coder, ops). Context and observability hooks are applied to all agents.
+All log files use `0o600` permissions and 10MB rotation. Enforcement hooks are applied to agents that write code (architect, coder, ops). Context and observability hooks are applied to all agents.
 
 ## Prompts
 
@@ -245,7 +245,7 @@ Each agent JSON file supports these fields:
 
 ## Subagent Limitations
 
-When agents run as subagents (delegated by the leader), some tools are not available in the subagent runtime:
+When agents run as subagents (delegated by the architect), some tools are not available in the subagent runtime:
 
 | Available | Not Available |
 |-----------|---------------|
@@ -263,10 +263,10 @@ This configuration uses the following MCP servers:
 | Server | Source | Used By |
 |--------|--------|---------|
 | [aws-knowledge-mcp-server](https://knowledge-mcp.global.api.aws) | AWS (official) | All agents |
-| [awslabs.document-loader-mcp-server](https://github.com/awslabs/mcp) | AWS Labs (official) | leader |
-| [awslabs.aws-iac-mcp-server](https://github.com/awslabs/mcp) | AWS Labs (official) | leader, coder, ops |
-| [context7](https://github.com/upstash/context7) | Upstash (open source) | leader, coder, reviewer, security-reviewer |
-| [deepwiki](https://mcp.deepwiki.com) | DeepWiki (public) | leader |
+| [awslabs.document-loader-mcp-server](https://github.com/awslabs/mcp) | AWS Labs (official) | architect |
+| [awslabs.aws-iac-mcp-server](https://github.com/awslabs/mcp) | AWS Labs (official) | architect, coder, ops |
+| [context7](https://github.com/upstash/context7) | Upstash (open source) | architect, coder, reviewer, security-reviewer |
+| [deepwiki](https://mcp.deepwiki.com) | DeepWiki (public) | architect |
 
 Context7 provides live documentation lookup for any library or framework. DeepWiki provides AI-powered Q&A against GitHub repositories. Together with the AWS documentation servers, these give agents access to current API references instead of relying on training data.
 
@@ -295,12 +295,12 @@ These features may change or be removed. See [Experimental Features](https://kir
 
 ## Customization
 
-- **Add agents**: Create a new `<name>.json` and `<name>.md` in `agents/`, then add the agent name to `leader.json`'s `toolsSettings.subagent.availableAgents` array
+- **Add agents**: Create a new `<name>.json` and `<name>.md` in `agents/`, then add the agent name to `architect.json`'s `toolsSettings.subagent.availableAgents` array
 - **Add steering rules**: Drop a markdown file in `steering/` — all agents will follow it
 - **Add skills**: Create a `<name>/SKILL.md` in `skills/` — agents reference these for domain knowledge
 - **Add prompts**: Drop a markdown file in `prompts/` — reusable workflows you can invoke by name during a chat session
 - **Add hooks**: Create executable scripts in `hooks/` and reference them in agent JSON configs under the appropriate trigger (`preToolUse`, `postToolUse`, `stop`, `agentSpawn`, `userPromptSubmit`)
-- **Change models**: Edit the `model` field in each agent's JSON config. Available GA models: `auto`, `claude-opus-4.6`, `claude-sonnet-4.6`, `claude-sonnet-4.0`, `claude-haiku-4.5`
+- **Change models**: Edit the `model` field in each agent's JSON config. Available GA models: `auto`, `claude-opus-4-7`, `claude-opus-4.6`, `claude-sonnet-4.6`, `claude-sonnet-4.0`, `claude-haiku-4-5`
 - **Change default agent**: Edit `chat.defaultAgent` in `settings/cli.json`
 
 ## Changelog

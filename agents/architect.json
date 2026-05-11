@@ -1,7 +1,7 @@
 {
-  "name": "leader",
-  "description": "Lead architect agent \u2014 researches, designs, specs, and plans. Delegates implementation to specialized subagents.",
-  "prompt": "file://agents/leader.md",
+  "name": "architect",
+  "description": "Lead architect agent — researches, designs, specs, and plans. Delegates implementation to specialized subagents.",
+  "prompt": "file://agents/architect.md",
   "mcpServers": {
     "aws-knowledge-mcp-server": {
       "url": "https://knowledge-mcp.global.api.aws",
@@ -125,5 +125,5 @@
     }
   },
   "useLegacyMcpJson": false,
-  "model": "claude-opus-4.6"
+  "model": "claude-opus-4-7"
 }

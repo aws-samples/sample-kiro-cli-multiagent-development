@@ -1,5 +1,5 @@
 {
-  "chat.defaultAgent": "leader",
+  "chat.defaultAgent": "architect",
   "chat.defaultModel": "auto",
   "chat.enableNotifications": true
 }
