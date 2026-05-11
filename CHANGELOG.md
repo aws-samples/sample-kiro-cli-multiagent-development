@@ -7,6 +7,9 @@
 - Updated models: architect uses claude-opus-4-7, ops uses claude-haiku-4-5
 - Delegation model now uses `/spawn` for parallel task execution (new TUI feature)
 - Added Opus 4.7-specific prompt optimizations: explicit tool-use guidance, stop conditions, scope statements
+- **Redesigned review agents** — clear separation of concerns between general reviewer and security reviewer
+  - General reviewer: removed security checklist, added spec compliance and regression risk checks
+  - Security reviewer: multi-phase methodology (threat model → targeted review → variant hunting → findings report), confidence-scored findings with attack scenarios, moved to claude-opus-4-7
 
 ## 2026-04-21
 

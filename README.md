@@ -16,7 +16,7 @@ This repo provides a sample `.kiro` configuration with six agents that work toge
 | **coder** | Implements features and writes tests from specs | claude-sonnet-4.6 |
 | **ops** | Infrastructure, CI/CD, containers, and documentation | claude-haiku-4-5 |
 | **reviewer** | Reviews implementations for correctness, quality, and maintainability | claude-opus-4.6 |
-| **security-reviewer** | Reviews implementations exclusively for security vulnerabilities and misconfigurations | claude-opus-4.6 |
+| **security-reviewer** | Reviews implementations exclusively for security vulnerabilities and misconfigurations | claude-opus-4-7 |
 | **docs** | Writes and updates documentation from completed spec work | claude-haiku-4.5 |
 
 The `architect` agent orchestrates the workflow: it writes specs, breaks work into parallelized task groups, delegates to `coder` and `ops` for implementation via `/spawn`, then sends the results to `reviewer` and `security-reviewer` for feedback. Once reviews pass, `docs` updates the documentation. This loop continues until all groups are complete.
