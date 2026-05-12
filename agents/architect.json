@@ -125,5 +125,5 @@
     }
   },
   "useLegacyMcpJson": false,
-  "model": "claude-opus-4-7"
+  "model": "claude-opus-4.7"
 }
