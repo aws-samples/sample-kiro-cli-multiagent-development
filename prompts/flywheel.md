@@ -6,10 +6,11 @@ Analyze recent sessions to identify patterns where the user had to correct, redi
 
 ### Phase 1: Session Analysis
 
-1. Check for the flywheel hook log at `~/.kiro/flywheel-log.jsonl` — if present, read it first for a pre-filtered view of recent agent responses (faster than parsing full session JSONL)
-2. Read all session metadata files (`~/.kiro/sessions/cli/*.json`) to get session list, sorted by `updated_at` descending
-3. For each session (most recent first, up to 10 sessions), read the `.jsonl` conversation log
-4. Identify **correction events** — user messages that indicate the agent did something wrong or suboptimal:
+1. **Start with the corrections log** at `~/.kiro/flywheel-corrections.jsonl` — this is the high-signal, pre-filtered list of user prompts that match correction patterns (terse responses, redirections, "no, I meant...", "instead of...", quality complaints, etc.). Each entry includes the user prompt, timestamp, cwd, and the `signals` that matched. Read this first to identify which sessions are worth deep-diving into.
+2. For context on what the agent did *before* each correction, cross-reference the turn index at `~/.kiro/flywheel-log.jsonl` — entries near the same timestamp/cwd show the assistant response that preceded the user correction.
+3. Read all session metadata files (`~/.kiro/sessions/cli/*.json`) to map timestamps + cwds back to sessions, sorted by `updated_at` descending.
+4. For sessions identified from the corrections log (or up to 10 most recent if no corrections logged), read the `.jsonl` conversation log for full context.
+5. Identify **correction events** — user messages that indicate the agent did something wrong or suboptimal:
    - Explicit corrections: "no, I meant...", "that's wrong", "don't do that", "try again but..."
    - Redirections: "instead, do...", "I said X not Y", "stop", "cancel that"
    - Repeated instructions: user restating something they already said
@@ -17,7 +18,7 @@ Analyze recent sessions to identify patterns where the user had to correct, redi
    - Cancelled turns (`end_reason: "Cancelled"`) followed by a rephrased request
    - Tool failures that required user intervention to resolve
    - Agent making assumptions the user had to correct
-4. For each correction event, extract:
+6. For each correction event, extract:
    - What the agent did wrong (the assistant message before the correction)
    - What the user wanted instead (the correction message)
    - The underlying principle (what general rule would have prevented this)
@@ -85,15 +86,34 @@ After presenting the report:
 
 ## Session Data Format
 
-### Flywheel Hook Log (preferred — fast path)
+### Corrections Log (preferred starting point)
 
-If the `flywheel-log.sh` stop hook is configured, it writes lightweight turn summaries to `~/.kiro/flywheel-log.jsonl`:
+The `flywheel-correction.sh` userPromptSubmit hook writes filtered correction-signal prompts to `~/.kiro/flywheel-corrections.jsonl`:
 
 ```json
-{"timestamp": "2026-04-02T19:16:54Z", "cwd": "/path/to/project", "response_length": 1234, "response_preview": "first 500 chars..."}
+{"ts": "2026-04-02T19:16:54Z", "cwd": "/path/to/project", "signals": ["explicit_correction", "redirect"], "prompt": "No, use uv instead of pip", "prompt_len": 26}
 ```
 
-This log provides a quick index of recent activity. Use it to identify which sessions are worth deep-diving into, then read the full session JSONL for correction event details.
+Each entry represents a user prompt that matched at least one correction pattern. The `signals` array tells you what kind of correction:
+- `explicit_correction` — "no, I meant", "that's wrong", "don't do X"
+- `redirect` — "instead", "cancel that", "try again", "start over"
+- `repeat` — "I already said", "again, but", "why did..."
+- `quality` — "too verbose", "you forgot", "you missed"
+- `tool_redirect` — "use X instead", "don't use Y"
+- `terse` — prompt shorter than 60 characters (often a one-word correction)
+- `short_question` — terse prompt ending in "?"
+
+This log is THE primary source for finding correction events — start here.
+
+### Turn Index Log (for context)
+
+The `flywheel-log.sh` stop hook writes a lightweight turn index to `~/.kiro/flywheel-log.jsonl`:
+
+```json
+{"ts": "2026-04-02T19:16:54Z", "cwd": "/path/to/project", "len": 1234, "head": "first 200 chars...", "tail": "last 200 chars..."}
+```
+
+Use this to find what the agent said immediately before a correction — match by timestamp + cwd to the correction entry, then look at the entry just before it in the turn index.
 
 ### Full Session Data
 

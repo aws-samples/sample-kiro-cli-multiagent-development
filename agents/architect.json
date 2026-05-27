@@ -75,6 +75,10 @@
       {
         "command": ".kiro/hooks/git-context.sh",
         "description": "Inject git status into context"
+      },
+      {
+        "command": ".kiro/hooks/flywheel-correction.sh",
+        "description": "Log correction-signal prompts for flywheel analysis"
       }
     ],
     "preToolUse": [

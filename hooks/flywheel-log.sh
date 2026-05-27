@@ -1,7 +1,13 @@
 #!/bin/bash
-# Hook: Log turn summaries for the flywheel prompt to consume.
+# Hook: Lightweight turn index for flywheel analysis.
 # Trigger: stop (fires after each assistant response)
-# Writes lightweight JSONL to ~/.kiro/flywheel-log.jsonl
+# Writes one minimal JSONL entry per turn to ~/.kiro/flywheel-log.jsonl
+#
+# Purpose: an INDEX of recent assistant turns, not a full transcript.
+# Keep entries small (<300 chars preview). Full text lives in session JSONLs.
+#
+# Pairs with flywheel-correction.sh (userPromptSubmit) — that hook is the
+# correction-detection trigger; this hook just records what came before.
 
 set -euo pipefail
 
@@ -11,7 +17,8 @@ _HOOK_EVENT="$EVENT" python3 << 'PYEOF'
 import json, sys, time, os
 
 LOG_PATH = os.path.realpath(os.path.expanduser("~/.kiro/flywheel-log.jsonl"))
-MAX_LOG_BYTES = 10 * 1024 * 1024  # 10 MB
+MAX_LOG_BYTES = 5 * 1024 * 1024  # 5 MB — smaller now that we're storing less per entry
+PREVIEW_CHARS = 200
 
 try:
     event = json.loads(os.environ['_HOOK_EVENT'])
@@ -25,12 +32,19 @@ cwd = event.get('cwd', '')
 if not response.strip():
     sys.exit(0)
 
+# Take a tail preview too — corrections often respond to something the agent
+# said at the end ("I'll do X") rather than the opening sentence.
+head = response[:PREVIEW_CHARS].replace('\n', ' ').strip()
+tail = response[-PREVIEW_CHARS:].replace('\n', ' ').strip() if len(response) > PREVIEW_CHARS * 2 else ''
+
 entry = {
-    'timestamp': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+    'ts': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
     'cwd': cwd,
-    'response_length': len(response),
-    'response_preview': response[:500],
+    'len': len(response),
+    'head': head,
 }
+if tail:
+    entry['tail'] = tail
 
 os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
 
@@ -44,7 +58,6 @@ try:
 except OSError:
     pass
 
-# Open with restrictive permissions (owner read/write only)
 fd = os.open(LOG_PATH, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
 try:
     os.chmod(LOG_PATH, 0o600)
