@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-05-27
+
+### Added
+- **`hooks/flywheel-correction.sh`** — new `userPromptSubmit` hook that filters user prompts for correction signals (explicit corrections, redirects, repeats, quality complaints, tool redirects, terse responses, short questions) and writes them to `~/.kiro/flywheel-corrections.jsonl`. This is now the high-signal starting point for flywheel analysis.
+- **`steering/spec-workflow.md`** — added explicit `Group Ordering` and `Mandatory Review Gate` sections that were previously implicit.
+
+### Changed
+- **`steering/spec-workflow.md`** — deploys are now out-of-band by default. Most projects deploy via CI/CD pipelines, so the default group ordering is research → implementation → review → documentation. In-spec deploy groups remain available for bootstrap/migration cases. Phase 2 review and security-review steps are tightened as explicit mandatory gates; Phase 3 evaluates both `review.md` and `security-review.md` per cycle.
+- **`hooks/flywheel-log.sh`** — rewritten as a lightweight turn index (head+tail preview, smaller cap, smaller per-entry footprint). The new corrections hook now carries the high-signal data, so the turn log only needs to be a positional index.
+- **`prompts/flywheel.md`** — reordered to read the corrections log first as the primary source for correction events, with the turn index as supporting context.
+- **`agents/architect.json`** — registers the new `flywheel-correction.sh` userPromptSubmit hook.
+
 ## 2026-05-11
 
 ### Changed
