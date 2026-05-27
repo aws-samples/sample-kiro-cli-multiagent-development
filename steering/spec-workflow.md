@@ -97,6 +97,29 @@ Spec: `specs/<slug>/spec.md`
 - If a task is blocked or fails, mark it `[!]` and add a note below it
 - Keep tasks small enough that one subagent can finish in a single session
 
+### Group Ordering
+
+The default task group ordering is:
+
+1. Research group (mandatory Group 1)
+2. Implementation groups (one or more)
+3. **Review gate** — all implementation groups must pass review before proceeding
+4. Documentation group (mandatory final group)
+
+**Deploys are out-of-band by default.** Most projects deploy via a CI/CD pipeline that runs after the spec is merged — the pipeline is not part of the spec's task list, and the spec finishes at the documentation group.
+
+**In-spec deploy groups are the exception, not the rule.** Only include a deploy group when the spec itself must perform a deploy to be considered done — e.g., bootstrapping new infrastructure before a pipeline exists, or one-off migrations that don't fit the pipeline. A deploy group is any group whose tasks include `deploy.sh`, `cdk deploy`, infrastructure provisioning, or production-affecting operations.
+
+When a spec does include an in-spec deploy group, the ordering is:
+
+1. Research group
+2. Implementation groups
+3. **Review gate** — must issue PASS before deploy runs
+4. Deploy/verification group
+5. Documentation group (still the final group)
+
+Documentation is always the final group regardless of whether a deploy group is present.
+
 ### Verification Requirements by Technology
 
 **Verify** commands must actually validate the output, not just check that files parse or import:
@@ -135,6 +158,23 @@ Every spec that introduces or relies on SDK/framework APIs MUST include a resear
 - Pin exact versions in the spec (no ranges)
 - Run `inspect.signature()` or equivalent to verify actual API surface
 - Flag in spec Constraints section which deps are alpha vs stable
+
+### Mandatory Review Gate
+
+Every spec MUST include a review gate after all implementation groups complete. The orchestrator delegates to the `reviewer` subagent to inspect all implementation work.
+
+- **Default (no in-spec deploy group):** the review gate is the second-to-last group, immediately before documentation.
+- **Spec includes an in-spec deploy group (rare — see Group Ordering):** the review gate runs before deploy (research → implementation → review gate → deploy → documentation).
+
+**Mandatory review gate task template:**
+
+```markdown
+## Group N: Review gate
+- [ ] Code review of all implementation groups | `.kiro/specs/<slug>/review.md`
+  - **Accept**: Reviewer has written findings to `review.md` with verdict PASS. Zero critical findings, zero warnings.
+  - **Verify**: `grep -i 'verdict.*pass' .kiro/specs/<slug>/review.md`
+  - **Constraints**: Do NOT proceed to the next group until this passes. Maximum 3 review cycles — escalate to user if still failing.
+```
 
 ### Mandatory Final Group: Documentation Update
 
@@ -326,8 +366,8 @@ RESOLVED | MITIGATED | WONT_FIX
 2. **Delegate via `/spawn`** — use `/spawn` to launch group tasks to `coder` and/or `ops` agents in parallel. Each spawned agent runs independently with its own context.
 3. **Verify completion** — confirm all tasks in the group are `[x]`
 4. **Run tests** — execute the test suite, confirm all tests pass
-5. **Review** — delegate to `reviewer`, who writes findings to `review.md`
-6. **Security review** — after the general review passes, delegate to `security-reviewer`, who writes findings to `security-review.md`. Do NOT proceed until both reviews pass.
+5. **Review (mandatory gate)** — delegate to `reviewer`, who writes findings to `review.md`. Do NOT proceed to the next group until the review verdict is PASS. This step is not optional — skipping review is a workflow violation.
+6. **Security review (mandatory gate)** — after the general review passes, delegate to `security-reviewer`, who writes findings to `security-review.md`. Do NOT proceed until both reviews pass.
 
 > ⚠️ **ANTI-PATTERN — DO NOT PARALLELIZE REVIEW GATES**
 >
@@ -338,7 +378,7 @@ RESOLVED | MITIGATED | WONT_FIX
 
 ### Phase 3: Fix (if needed)
 1. **Read `.kiro/specs/currentspec.md`** to resolve the active spec
-2. **Evaluate review** — read `review.md` for the current cycle
+2. **Evaluate reviews** — read `review.md` and `security-review.md` for the current cycle
 3. **If FAIL** — create fix tasks as a new group in `tasks.md` (e.g., `## Fix Group 1: Address review cycle 1`), then go to step 1 of Phase 2
 4. **If PASS** — proceed to next group (back to Phase 2 step 1) or finish
 5. **On completion** (all groups pass) — delete `.kiro/specs/currentspec.md`
