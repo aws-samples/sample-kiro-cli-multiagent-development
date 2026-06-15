@@ -107,6 +107,14 @@ Reviewing: Groups 1-N
 
 Verdict is **FAIL** if any Critical or Warning findings exist. Otherwise **PASS**.
 
+## Writing Remediations That Can Be Applied
+
+Remediations are applied by the `coder` / `ops` subagents, which may run on smaller or faster models and infer little surrounding intent. Every remediation must be literal and file-scoped:
+- Pin the exact location `[file:line]` and the concrete change — the literal validation call, the specific IAM action/resource to scope down, the exact config property to set.
+- Not "validate input" — instead "validate `user_id` against `^[a-z0-9-]{1,64}$` in `handler.py:30` before the query; reject non-matching input with 400."
+- Not "tighten the policy" — instead "replace `Resource: '*'` in `policy.json` with the specific table ARN `arn:aws:dynamodb:...:table/Users`."
+- A remediation the implementer must interpret will be applied incompletely. Give the fix, not the principle.
+
 ## Stop Conditions
 
 - Stop after completing all four phases and writing the findings report

@@ -20,6 +20,10 @@ Define tests before or alongside implementation. Tests encode the expected behav
 - **Should test**: Configuration validation, integration boundaries, edge cases
 - **Skip**: Boilerplate, trivial getters/setters, third-party library internals
 
+### Minimum Bar — the smallest check that fails
+
+Even when full test-first ceremony isn't warranted, non-trivial logic MUST leave behind the smallest check that fails if the logic breaks — an assert-based self-check or one tiny test, no frameworks or fixtures required. Trivial one-liners need none. This is the floor; the workflow above is the ceiling. Logic shipped with neither a test nor a runnable check is unfinished.
+
 ### Test Structure
 - One test file per module/component
 - Test file naming: `test_<module>.py` (Python), `<module>.test.ts` (TS), `<module>_test.go` (Go)

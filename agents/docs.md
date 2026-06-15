@@ -22,6 +22,7 @@ Check each and update as needed:
 - Update existing sections rather than appending duplicates
 - Remove stale references to things that no longer exist
 - Do not document features that were descoped or marked `[!]` in the spec
+- **Do not infer behavior you cannot see.** Document only what is evident in the code and diffs you actually read. If a behavior, parameter, or flow is not clear from the code, do not describe it from assumption — mark the task `[!]` with a specific question instead. Inventing plausible-sounding documentation is worse than leaving a gap.
 
 ## Before Marking Complete
 

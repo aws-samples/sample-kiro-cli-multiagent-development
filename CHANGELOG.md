@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-06-15
+
+### Added
+- **`steering/minimalism.md`** — a "write the least code that fully works" rule. A six-rung YAGNI escalation ladder (does this need to exist? → stdlib → native platform → installed dependency → one line → minimum that works), "not lazy about" guardrails that never simplify away validation, data-loss handling, security, or accessibility, and the `SHORTCUT:` convention for marking intentional shortcuts with their ceiling and upgrade path. Scoped to product code, not the workflow's own artifacts. (Ladder and guardrails adapted from the ponytail project, MIT.)
+- **`prompts/harvest-debt.md`** — collects `SHORTCUT:` markers across the codebase into a `docs/debt.md` ledger, flags markers with no named ceiling, and can hand off to `/scope` for a hardening spec. Read-only on source.
+- **`skills/iac-verification/SKILL.md`** — strong render/validate commands for CDK, CloudFormation, Terraform, Docker, and Kubernetes (e.g., `cdk synth`, `aws cloudformation validate-template`, `terraform validate`, `docker build --check`) so IaC tasks are verified by rendering the real output, not by linting or `cat`.
+- **`hooks/check-rule-copies.sh`** — maintenance check that keeps the minimalism ladder block in sync across `steering/minimalism.md` and its copies in `coder.md`/`ops.md`. Resolves paths relative to the script; run manually or in CI.
+
+### Changed
+- **`steering/spec-workflow.md`** — upgraded the `tasks.md` task contract for delegation to implementer subagents: labeled `Context`/`Files`/`Source`/`Example`/`Accept`/`Verify`/`Constraints` sections, a hard self-containment rule (restate or quote the interfaces a task depends on instead of pointing at "the spec"), a required worked example for repeated patterns, and a per-task "if Verify fails twice, mark `[!]` and stop" rule.
+- **`agents/architect.md`** — Task Quality Requirements now reference `spec-workflow.md` as the single source of truth; added a "Writing for implementer subagents" section (be literal, embed the source, give one worked example, state the why, specify verify + stop conditions).
+- **`agents/coder.md`** — added a plan-before-code step for multi-file tasks, a "Tool Use & Stop Rules" section (parallel reads, stop on repeated failure, ask before destructive actions), and an inline copy of the minimalism ladder.
+- **`agents/ops.md`** — strengthened verification to render/validate rather than lint, added a "Tool Use & Stop Rules" section, and an infra-flavored copy of the minimalism ladder.
+- **`agents/reviewer.md`** — added an over-engineering lens (`delete:`/`stdlib:`/`native:`/`yagni:`/`shrink:` tags, Suggestions by default) with a `net: -N lines possible` score, and guidance to write findings as literal, file-scoped, fix-task-ready instructions.
+- **`agents/security-reviewer.md`** — remediations must now be literal and file-scoped (exact location and concrete change) so they can be applied without interpretation.
+- **`agents/docs.md`** — added a "do not infer behavior you cannot see" guard; document only what is evident in the code, mark `[!]` otherwise.
+- **`steering/sdk-verification.md`** — added a rule: never infer an API surface from its name; verify the contract in-session or ask.
+- **`steering/testing.md`** — added a minimum-bar floor: non-trivial logic must leave the smallest check that fails if the logic breaks, even when full test-first ceremony isn't warranted.
+- **`prompts/execute.md`** — validate that each task is self-contained for an implementer subagent before delegating; tighten under-specified tasks rather than dispatching ambiguity.
+- **`prompts/scope.md`** — task planning now applies the `spec-workflow.md` task contract (embedded source, worked example, stop rule).
+- **`prompts/flywheel.md`** — pattern recognition now tags each correction by the agent that produced it and adds a "task-authoring" root-cause category, distinguishing an under-specified task from a genuinely wrong rule.
+- **`agents/ops.json`** — added the `context7` MCP server so the ops agent can verify provider/CDK APIs against live documentation.
+
 ## 2026-05-27
 
 ### Added

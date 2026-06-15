@@ -36,3 +36,4 @@ Verify API contracts from authoritative sources before writing code. Never rely 
 2. **Document what you find** — write verified patterns to the project's `docs/tech.md` so they aren't re-researched by future tasks
 3. **Check project docs first** — the project's `docs/tech.md` may already have verified patterns; use those before searching externally
 4. **Version-lock discoveries** — note which version the verification applies to; patterns may change on upgrade
+5. **Never infer an API from its name** — do not assume a constructor signature, method name, parameter order, or import path because it resembles a convention from another library or "looks right." A plausible-sounding name is not verification. If you have not confirmed the API surface in this session (via docs, `inspect.signature()`, or source), look it up or ask. Name-based guessing is the most common source of preventable errors and is especially likely to slip through when the implementer is confident.

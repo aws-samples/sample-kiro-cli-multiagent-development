@@ -28,10 +28,12 @@ Analyze recent sessions to identify patterns where the user had to correct, redi
 
 1. Group correction events by theme (e.g., "output too verbose", "wrong tool choice", "ignored constraint", "hallucinated API")
 2. Filter out one-off mistakes — focus on patterns that appear across 2+ sessions or represent a class of error
-3. For each pattern, determine if it's:
+3. **Tag each pattern with the agent that produced the corrected behavior** (resolve via `agent_name`). The same surface error has different root causes depending on its source — an implementer subagent (`coder`/`ops`) going off-spec usually means the *task was under-specified* (fix the `tasks.md` contract or the orchestrator that wrote it), whereas the orchestrator (`architect`) doing it points to a prompt or steering gap. Distinguish "the agent needed a more literal instruction" from "the rule itself is wrong."
+4. For each pattern, determine if it's:
    - A **steering** issue (general behavioral rule that applies to all agents)
    - A **skill** gap (domain-specific knowledge the agent is missing)
    - An **agent** config issue (specific agent needs different instructions or constraints)
+   - A **task-authoring** issue (an implementer subagent was set up to fail by an ambiguous task — fix the upstream orchestrator/task contract, not the implementer)
 
 ### Phase 3: Cross-Reference Existing Configuration
 

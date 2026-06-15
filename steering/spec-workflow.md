@@ -68,6 +68,8 @@ Known unknowns and mitigation strategies.
 
 Tasks are organized into parallel groups. All tasks within a group can be executed simultaneously by independent subagents. Groups execute sequentially — group 2 starts only after group 1 is complete.
 
+> **Implementation is delegated to subagents (`coder`, `ops`) that may run on smaller or faster models than the orchestrator.** They infer less surrounding intent — they follow literal, sectioned, example-bearing instructions best, and work most reliably when the source they need is placed *inside* the task rather than left to be inferred from the spec. Write every task so an implementer with **zero knowledge of the spec or sibling tasks** can complete it on the first pass.
+
 ```markdown
 # Tasks: <Title>
 
@@ -75,24 +77,33 @@ Spec: `specs/<slug>/spec.md`
 
 ## Group 1: <description>
 - [ ] Task description | `path/to/relevant/files`
+  - **Context**: why this task exists and how it fits — state intent, not just the what (implementers pick better tradeoffs when they know why)
+  - **Files**: exact paths to read and to create/modify
   - **Packages**: exact package names and versions (e.g., `strands-agents==0.1.x`, not `strands`)
+  - **Source**: interfaces, signatures, constants, or schemas this task depends on — quote them inline or cite exact `docs/tech.md` lines. Do NOT assume the implementer holds sibling-task or whole-spec context.
+  - **Example** (for repeated patterns): one concrete input→output / call→result showing the exact shape expected
   - **Accept**: measurable completion criteria
   - **Verify**: command(s) the subagent must run before marking complete
-  - **Constraints**: explicit "do not" rules or known gotchas
+  - **Constraints**: explicit "do not" rules, known naming gotchas, and the stop rule — "if Verify fails twice for the same reason, mark `[!]` with the error and stop; do not keep editing"
 
 ## Group 2: <description>
 - [ ] Task description | `path/to/relevant/files`
+  - **Context**: why this task exists
+  - **Files**: exact paths to read and to create/modify
   - **Accept**: measurable completion criteria
   - **Verify**: command(s) the subagent must run before marking complete
+  - **Constraints**: stop rule and any "do not" rules
 ```
 
 ### Task Rules
 
-- Each task MUST be self-contained — a subagent should be able to complete it with no knowledge of sibling tasks in the same group
-- Each task specifies relevant file paths and clear acceptance criteria
+- Each task MUST be self-contained — a subagent should be able to complete it with **no knowledge of the spec or sibling tasks**. Restate or quote any interface, signature, constant, or schema the task depends on under **Source** rather than pointing at "the spec."
+- Each task includes a **Context** line that states *why* the task exists — intent, not just the mechanical what. Implementer subagents pick better tradeoffs when the reason is explicit.
+- Each task specifies exact file paths (**Files**) and clear acceptance criteria
 - Every task MUST include an **Accept** field with measurable criteria and a **Verify** field with at least one command to run
+- For any task that implements a **repeated pattern** (a handler, a construct, a test shape, a transform), include one concrete **Example** showing the exact expected shape. One concrete example outperforms a paragraph of style description.
 - Include **Packages** with exact PyPI/npm names and version constraints when the task involves dependencies
-- Include **Constraints** to call out known naming gotchas, common mistakes, or explicit "do not" rules
+- **Constraints** MUST include the per-task stop rule: if **Verify** fails twice for the same reason, mark `[!]` with the error and stop — do not loop on edits. Also call out naming gotchas, common import mistakes, and explicit "do not" rules.
 - Subagents mark tasks `[x]` when complete — only after verification passes
 - If a task is blocked or fails, mark it `[!]` and add a note below it
 - Keep tasks small enough that one subagent can finish in a single session

@@ -89,12 +89,23 @@ Use `/spawn` to launch subagents for parallel task execution. Each `/spawn` crea
 
 ### Task Quality Requirements
 
-When writing tasks in `tasks.md`, you MUST:
+The `tasks.md` task contract is defined in `.kiro/steering/spec-workflow.md` (Task Format + Task Rules) — that steering doc is the source of truth. When writing tasks you MUST:
 - Specify exact package names as they appear on PyPI/npm — not colloquial names (e.g., `strands-agents`, not `strands`)
 - Include version constraints when relevant (e.g., `strands-agents==0.1.x`)
 - Write at least one **Verify** command per task that the subagent must run before marking complete
 - Call out known naming gotchas, common import mistakes, or "do not" rules in the **Constraints** field
 - Reference specific test files in **Accept** criteria when tests exist for the module
+
+### Writing for implementer subagents
+
+Implementation tasks are executed by `coder` and `ops`, which may run on smaller or faster models than you and infer less surrounding intent. They follow literal, sectioned instructions best and do not reliably fill gaps from context you leave implicit. You may rely on inference and ambiguity-resolution for *your own* planning, but you must not pass that ambiguity downstream. For every delegated task:
+
+- **Be literal and explicit.** State the task, constraints, and expected output plainly. If a colleague with no context would be confused, an implementer subagent will be too.
+- **Embed the source, don't point at it.** Quote the interfaces, signatures, constants, or schemas the task needs directly in the task (or cite exact `docs/tech.md` lines). Do not assume the implementer has read the spec or sibling tasks.
+- **Give one worked example for any repeated pattern.** A single concrete input→output beats a paragraph of style description.
+- **State the *why*.** A one-line intent lets the implementer pick better tradeoffs.
+- **Specify verify + stop conditions.** Include the exact **Verify** command, and the rule "if Verify fails twice for the same reason, mark `[!]` and stop."
+- **Keep each task small and single-purpose** so it fits one session without context pressure.
 
 ## Research Capabilities
 

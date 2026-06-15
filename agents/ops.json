@@ -17,6 +17,17 @@
       "env": {
         "FASTMCP_LOG_LEVEL": "ERROR"
       }
+    },
+    "context7": {
+      "command": "npx",
+      "timeout": 200000,
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ],
+      "autoApprove": [
+        "*"
+      ]
     }
   },
   "tools": [
@@ -26,7 +37,8 @@
   "allowedTools": [
     "@builtin",
     "@aws-knowledge-mcp-server",
-    "@awslabs.aws-iac-mcp-server"
+    "@awslabs.aws-iac-mcp-server",
+    "@context7"
   ],
   "resources": [
     "file://.kiro/steering/**/*.md",

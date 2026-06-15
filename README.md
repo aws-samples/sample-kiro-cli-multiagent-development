@@ -93,6 +93,7 @@ Local `.kiro/` takes precedence over global `~/.kiro/` — remove the local copy
 │   └── docs.json / .md     # Documentation agent config and prompt
 ├── hooks/                   # Hook scripts — executed at agent lifecycle trigger points
 │   ├── check-dependency-pins.sh  # Block unpinned versions in dependency files
+│   ├── check-rule-copies.sh      # Keep the minimalism ladder in sync across copies
 │   ├── check-secrets.sh          # Block writes containing secrets or API keys
 │   ├── config-drift-guard.sh     # Block writes to config without approval
 │   ├── flywheel-log.sh           # Log turn summaries for flywheel analysis
@@ -103,9 +104,11 @@ Local `.kiro/` takes precedence over global `~/.kiro/` — remove the local copy
 │   ├── execute.md           # Resume and run the current spec to completion
 │   ├── scope.md             # Start a new spec discussion with the architect agent
 │   ├── diagnose.md          # Test-first bug fixing from issues/ reports
+│   ├── harvest-debt.md      # Collect SHORTCUT: markers into a tech-debt ledger
 │   └── flywheel.md          # Session analysis → config improvement loop
 ├── steering/                # Global behavioral rules for all agents
 │   ├── spec-workflow.md     # Spec-driven development loop with dependency research
+│   ├── minimalism.md        # Write the least code that fully works (YAGNI ladder)
 │   ├── sdk-verification.md  # Universal SDK/framework API verification tiers
 │   ├── doc-research.md      # Mandatory documentation research before implementation
 │   ├── deploy-validation.md # Post-deploy smoke test requirements
@@ -114,7 +117,7 @@ Local `.kiro/` takes precedence over global `~/.kiro/` — remove the local copy
 │   ├── documentation.md     # Documentation requirements for every spec
 │   ├── testing.md           # Test-first development workflow
 │   ├── issue-tracking.md   # Issue documentation discipline for bugs and incidents
-│   └── latest-versions.md   # Use latest stable versions by default
+│   └── dependency-versions.md   # Pin versions, 7-day quarantine, security-patch exception
 ├── skills/                  # Domain-specific knowledge files
 │   ├── agentcore-patterns/  # Amazon Bedrock AgentCore runtime, gateway, and memory patterns
 │   ├── aws-cli/             # AWS CLI best practices
@@ -122,6 +125,7 @@ Local `.kiro/` takes precedence over global `~/.kiro/` — remove the local copy
 │   ├── docker-build/        # Docker image building patterns
 │   ├── documentation/       # Technical writing patterns
 │   ├── git-workflow/        # Git operations and conventions
+│   ├── iac-verification/    # Strong render/validate commands for IaC
 │   └── shell-scripting/     # Bash/Zsh scripting patterns
 └── settings/
     └── cli.json             # Kiro CLI settings (default agent, model)
@@ -148,6 +152,7 @@ Local `.kiro/` takes precedence over global `~/.kiro/` — remove the local copy
 | Rule | Purpose |
 |------|---------|
 | `spec-workflow.md` | Defines the full plan → build → review loop with parallel task groups, mandatory dependency research, mandatory final documentation group, and issue tracking |
+| `minimalism.md` | Write the least code that fully works — a YAGNI escalation ladder, "not lazy about" guardrails (validation, security, accessibility are never cut), and the `SHORTCUT:` shortcut-marker convention |
 | `sdk-verification.md` | Tiered API verification — Tier 1 (always verify signatures, ARNs, imports) and Tier 2 (deep verify for alpha/unfamiliar SDKs) |
 | `doc-research.md` | Mandates using AWS documentation search and Context7 to look up live docs before writing implementation code |
 | `deploy-validation.md` | Every deploy script must include a post-deploy smoke test; exit non-zero on failure |
@@ -156,7 +161,7 @@ Local `.kiro/` takes precedence over global `~/.kiro/` — remove the local copy
 | `documentation.md` | Every non-trivial change must include documentation updates; mandatory final group in every spec |
 | `testing.md` | Test-first development — define tests before or alongside implementation |
 | `issue-tracking.md` | Every bug fix or incident must be documented in `issues/` with report and summary |
-| `latest-versions.md` | Pin dependency versions, 7-day quarantine on new releases, security patch exception |
+| `dependency-versions.md` | Pin dependency versions, 7-day quarantine on new releases, security patch exception |
 
 ## Hooks
 
@@ -184,6 +189,12 @@ Hooks are shell scripts that fire at specific points during agent execution. The
 |------|---------|---------|
 | `flywheel-log.sh` | `stop` | Logs turn summaries to `~/.kiro/flywheel-log.jsonl` for the [flywheel prompt](#the-flywheel). |
 
+### Maintenance checks (run manually or in CI — not trigger-wired)
+
+| Script | Purpose |
+|--------|---------|
+| `check-rule-copies.sh` | Verifies the minimalism ladder block (between `<!-- LADDER:BEGIN/END -->` markers) stays identical across `steering/minimalism.md` and its copies in `coder.md`/`ops.md`. Exits non-zero on drift. Run it after editing the ladder, or wire it into CI. |
+
 All log files use `0o600` permissions and 10MB rotation. Enforcement hooks are applied to agents that write code (architect, coder, ops). Context and observability hooks are applied to all agents.
 
 ## Prompts
@@ -195,6 +206,7 @@ Prompts are reusable workflows you invoke by name during a chat session. Type `/
 | `execute` | `/prompts execute` | Resume and run the current spec — delegates task groups, runs reviews, loops until done |
 | `scope` | `/prompts scope` | Start a new spec discussion — gathers requirements interactively, writes spec and task plan |
 | `diagnose` | `/prompts diagnose` | Test-first bug fixing — reads `issues/` reports, writes a failing test, then fixes the code to pass it |
+| `harvest-debt` | `/prompts harvest-debt` | Collects `SHORTCUT:` markers across the codebase into a `docs/debt.md` ledger; can feed a hardening spec via `/scope` |
 | `flywheel` | `/prompts flywheel` | Analyzes recent sessions for correction patterns and proposes config improvements |
 
 ### The Flywheel
@@ -265,7 +277,7 @@ This configuration uses the following MCP servers:
 | [aws-knowledge-mcp-server](https://knowledge-mcp.global.api.aws) | AWS (official) | All agents |
 | [awslabs.document-loader-mcp-server](https://github.com/awslabs/mcp) | AWS Labs (official) | architect |
 | [awslabs.aws-iac-mcp-server](https://github.com/awslabs/mcp) | AWS Labs (official) | architect, coder, ops |
-| [context7](https://github.com/upstash/context7) | Upstash (open source) | architect, coder, reviewer, security-reviewer |
+| [context7](https://github.com/upstash/context7) | Upstash (open source) | architect, coder, ops, reviewer, security-reviewer |
 | [deepwiki](https://mcp.deepwiki.com) | DeepWiki (public) | architect |
 
 Context7 provides live documentation lookup for any library or framework. DeepWiki provides AI-powered Q&A against GitHub repositories. Together with the AWS documentation servers, these give agents access to current API references instead of relying on training data.
