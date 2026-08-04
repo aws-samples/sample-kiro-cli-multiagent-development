@@ -1,3 +1,8 @@
+---
+name: agentcore-patterns
+description: Verified Amazon Bedrock AgentCore patterns for Runtime handlers, Gateway MCP clients with SigV4/IAM auth, Memory session management with Strands, and Bedrock cross-region inference-profile IAM policies. Use when building or debugging AgentCore-based agents.
+---
+
 # Amazon Bedrock AgentCore Patterns
 
 Verified patterns for AgentCore Runtime, Gateway, Memory, and Bedrock IAM. Use when building or debugging AgentCore-based agents.

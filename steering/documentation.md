@@ -1,7 +1,3 @@
----
-inclusion: always
----
-
 # Documentation Requirements
 
 ## Principle
@@ -10,24 +6,24 @@ Every non-trivial change must include documentation. Code without docs is unfini
 
 ## What Must Be Documented
 
-### Always (every spec)
+### Always (every plan)
 - **README updates** — if the change adds, removes, or modifies user-facing behavior, CLI commands, configuration, or dependencies
 - **Inline code docs** — public functions/classes get docstrings explaining purpose, parameters, return values, and exceptions/errors
 
 ### When Applicable
-- **Architecture docs** — for new services, significant redesigns, or new integration patterns. Place in `docs/architecture/` or alongside the spec
+- **Architecture docs** — for new services, significant redesigns, or new integration patterns. Place in `docs/architecture/` or alongside the plan
 - **Runbooks** — for new operational procedures, deployment steps, or incident response changes. Place in `docs/runbooks/`
 - **API docs** — for new or changed API endpoints. Include request/response examples
 - **Configuration docs** — for new environment variables, feature flags, or config files
 
 ## Task Planning Rules
 
-When creating `tasks.md`, the architect MUST:
-1. Include a mandatory documentation update task as the **final group** — see `spec-workflow.md` for the required template
-2. README updates go in the same group as the feature they document (for mid-spec updates) or in the final documentation group
+When creating `tasks.md`, the orchestrator MUST:
+1. Include a mandatory documentation update task as the **final group** — see `delivery-workflow.md` for the required template
+2. README updates go in the same group as the feature they document (for mid-plan updates) or in the final documentation group
 3. Architecture docs go in the first group (written alongside or before implementation)
 4. Runbooks go in the final group (after implementation is stable)
-5. For non-spec work (simple changes), the architect must still check for and perform documentation updates as part of the task
+5. For non-plan work (simple changes), the orchestrator must still check for and perform documentation updates as part of the task
 
 ## Documentation Standards
 

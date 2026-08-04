@@ -1,0 +1,180 @@
+# Kiro CLI user-global permissions  (install: ~/.kiro/settings/permissions.yaml)
+#
+# HEADS UP — these comments are transient. When you answer an approval prompt with "always allow",
+# the CLI rewrites this file to persist the choice and strips every comment in it. Verified
+# 2026-07-25: one click removed 54 lines of rationale (all rules survived intact). Keep a copy of
+# the reasoning outside this file — docs/permissions.md mirrors it, and appended
+# "always allow" entries cannot weaken anything below, since deny > ask > allow.
+#
+# Applies to every workspace. Resolution is by restrictiveness: deny > ask > allow — a more
+# permissive rule never overrides a more restrictive one.
+# Pattern syntax: filesystem caps support * ** {a,b} [abc]; shell/web caps support ONLY * .
+# Compound shell commands (; && || |) are split and each sub-command is evaluated independently.
+#
+# STYLE: ZERO-ASK. There is deliberately not one `ask` rule in this file, and adding one is a
+# regression. The reason is mechanical, from the engine's own decision function:
+#
+#     if (effect === "deny")  return { decision: "reject", reason, policyDenial };
+#     if (effect === "allow") return { decision: "accept" };
+#     return await consentSerializer.serializedAsk(...);   // <- blocks on a human
+#
+# `deny` hands the agent a *reason* and it keeps working — it can route around the refusal, log it,
+# or mark the task blocked. `allow` is silent. Only `ask` parks the run until someone clicks, which
+# makes unattended operation impossible by construction: one `rm -rf` in a scratch dir at 3am and
+# the run is asleep until morning.
+#
+# The counterintuitive part is that this is *stricter*, not looser. An `ask` on
+# `rm -rf ~/important` is a prompt a tired human approves; a `deny` is a refusal. Every rule below
+# that used to prompt now either allows the action outright or refuses it outright, and the
+# judgement calls were made here, once, deliberately — rather than at 3am, repeatedly, by whoever
+# is watching.
+#
+# The guard hooks are what make the permissive half acceptable. They are subprocesses, not tool
+# calls, so they never prompt, and they fire on every shell invocation regardless of these rules.
+# See docs/hooks.md.
+
+rules:
+  # Baseline: auto-approve built-in tools, MCP, subagents, shell, and web. The deny rules below are
+  # more restrictive and WIN (deny > ask > allow). NOTE: shell is evaluated under its own `shell`
+  # capability — `builtin: allow` alone does NOT auto-approve shell commands, so an explicit
+  # `shell: allow` is required here. web_fetch/web_search are declared explicitly for the same
+  # reason: an undeclared capability falls through to the engine default, and a default that
+  # resolves to `ask` is exactly what this file exists to eliminate.
+  - { capability: builtin, effect: allow }
+  - { capability: shell, effect: allow }
+  - { capability: mcp, effect: allow }
+  - { capability: web_fetch, effect: allow }
+  - { capability: web_search, effect: allow }
+  - { capability: subagent, effect: allow }
+  # Naming the subagents explicitly restores what the v2 configs carried as
+  # `toolsSettings.subagent.trustedAgents`; the v3 migration dropped that block. Keep both rules:
+  # the bare one grants the capability, this one names who is trusted.
+  - { capability: subagent, effect: allow, match: [coder, docs, ops, reviewer, security-reviewer] }
+
+  # ---- Reads ----
+  # NO fs_read deny rule here — on purpose, and re-verified empirically on v3.
+  # A deny match on fs_read fails closed for the broad-scan tools: with a deny rule of
+  # ["**/*.pem", "**/id_rsa", "**/.ssh/**", "**/.aws/credentials"] active, grep_search and
+  # file_search were BOTH denied outright on calls that touched no secret at all. They present a
+  # pattern scope the engine cannot prove disjoint from the deny globs, so it refuses the whole
+  # call. An orchestrator that cannot grep is not workable, so the rule stays out.
+  #
+  # Secret-read protection on the fs_read path is the PreToolUse guard hook `guard-secret-reads`,
+  # which inspects concrete resolved paths on read_file/read_files and therefore leaves pattern
+  # scans untouched. Matching is case-folded (macOS is case-insensitive) with an allowlist for
+  # .example/.sample/.template. Pinned by hooks/scripts/test-guard-secret-reads.sh.
+  #
+  # SCOPE LIMIT — read this before trusting the above. That hook matches read_file|read_files ONLY.
+  # `shell: allow` is an unguarded equivalent: `cat ~/.aws/credentials` bypasses it entirely. This
+  # is parity with the fs_read deny rule it replaced, so it is not a regression — but secret-read
+  # protection here is NOT complete, and no rule in this file makes it complete.
+
+  # ---- Writes ----
+  # Writes always target one concrete path, so `**/` patterns cause no traversal collateral.
+  # Everything here is deny rather than ask: an unattended run has no business writing any of it,
+  # and a run that tries should be told no and continue.
+  - capability: fs_write
+    effect: deny
+    match:
+      # Key material and credential stores.
+      - "**/*.pem"
+      - "**/*.key"
+      - "**/id_rsa"
+      - "**/id_ed25519"
+      - "**/.ssh/**"
+      - "**/.aws/credentials"
+      # Secrets in the workspace. Was `ask`; an unattended agent writing a .env is not a decision
+      # worth waking up for, and the answer is no either way.
+      - "**/.env"
+      - "**/.env.*"
+      - "**/secrets/**"
+      # The enforcement surface. Was `ask` on all of `~/.kiro/**`, which is unusable unattended and
+      # over-broad besides. Narrowed to the three directories that define what the agent may do:
+      # the policy itself, the hooks that guard it, and the agent profiles that declare tools,
+      # MCP servers, and permissions. `~/.kiro/steering/`, `skills/`, and `docs/` stay writable —
+      # they are prose, they are git-tracked, and the flywheel edits them by design.
+      - "~/.kiro/settings/**"
+      - "~/.kiro/hooks/**"
+      - "~/.kiro/agents/**"
+
+  # ---- Shell: refuse outright, rather than asking ----
+  # Modification of the enforcement surface via shell. ENGINE-ENFORCED second layer for the
+  # `guard-config-writes` hook, which is a command-string parser and therefore has bypass classes
+  # it cannot close (heredoc-as-code, command substitution, brace expansion, partial quoting, and
+  # the unbounded set of writer verbs). This rule shares none of them, because the engine matches
+  # before the shell runs.
+  #
+  # Cost, accepted deliberately: shell patterns support only `*`, so this cannot tell a read from a
+  # write. It refuses `cat ~/.kiro/settings/permissions.yaml` too. Read those files with read_file
+  # instead, which is allowed. Note this governs *agent* tool calls only — a human typing
+  # `chmod +x .kiro/hooks/scripts/*.sh` during install is unaffected.
+  - capability: shell
+    effect: deny
+    match:
+      - "*permissions.yaml*"
+      - "*.kiro/settings*"
+      - "*.kiro/hooks*"
+
+  # Destructive git, infrastructure, and container operations. Every one of these was `ask`.
+  # None of them is something an unattended run should do, and none is something a human should be
+  # woken up to approve — the right answer is always "no, and tell the agent why."
+  - capability: shell
+    effect: deny
+    match:
+      - "git push *--force*"
+      - "git push *-f"
+      - "git push *-f *"
+      - "git push *--force-with-lease*"
+      - "git reset *--hard*"
+      - "git clean *-f*"
+      - "git checkout *--force*"
+      - "git branch -D*"
+      - "git rebase*"
+      - "chmod -R *"
+      - "chown -R *"
+      - "docker system prune*"
+      - "docker volume prune*"
+      - "terraform destroy*"
+      - "kubectl delete *"
+
+  # Recursive delete: the single biggest source of prompts in practice, because compound commands
+  # are split per sub-command and agents clean up scratch directories constantly. Denied outside
+  # the OS temp directories, allowed inside them when addressed by absolute path.
+  #
+  # Two common idioms are NOT covered and are denied on purpose, because no pattern can resolve
+  # them: a relative target after `cd /tmp` (`cd /tmp && rm -rf fg`) and a variable target
+  # (`T=$(mktemp -d); rm -rf "$T"`). The fix is not a looser rule — it is to stop needing the
+  # operation. `steering/cli-execution.md` instructs agents to create scratch space with
+  # `mktemp -d` and leave it for the OS to reclaim. Nothing in an agent workflow requires a
+  # recursive delete, so the honest setting for one is "no."
+  #
+  # `exclude` is doing the carve-out. Its semantics are inferred from the engine's rule struct
+  # (field order capability/match/exclude/effect) and its v2->v3 converter, NOT from documentation
+  # or a live test — the in-session probe was inconclusive. That is deliberately safe here: if
+  # `exclude` is ignored, every recursive delete is denied, which is *more* restrictive, not less.
+  # Verify in a fresh session with:
+  #   grep -h 'acp.policy-eval.complete' ~/.kiro/logs/*/kiro.log | tail
+  # after running `rm -rf /tmp/scratch-probe` (expect allow) and `rm -rf ./scratch-probe`
+  # (expect deny).
+  - capability: shell
+    effect: deny
+    match:
+      - "rm -r*"
+      - "rm -R*"
+      - "rm -fr*"
+      - "rm -fR*"
+    exclude:
+      - "rm -rf /tmp/*"
+      - "rm -r /tmp/*"
+      - "rm -rf /var/folders/*"
+      - "rm -r /var/folders/*"
+
+  # Never-legitimate / catastrophic shell.
+  - capability: shell
+    effect: deny
+    match: ["mkfs*", "dd if=* of=/dev/*", "sudo rm *", "chmod 777 /*", "chmod -R 777 /*"]
+
+  # Block fetches to cloud-metadata / SSRF endpoints. Denies win over the web_fetch allow above.
+  - capability: web_fetch
+    effect: deny
+    match: ["*169.254.169.254*", "*metadata.google.internal*", "*100.100.100.200*"]

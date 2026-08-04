@@ -1,7 +1,13 @@
 {
-  "chat.defaultAgent": "architect",
-  "chat.defaultModel": "claude-opus-4-7",
+  "app.beta": false,
+  "autocomplete.disable": false,
+  "autocomplete.insertSpaceAutomatically": true,
+  "chat.enableContextUsageIndicator": true,
+  "chat.enableKnowledge": false,
+  "chat.enableNotifications": true,
   "chat.enableSubagent": true,
   "chat.enableThinking": true,
-  "chat.enableNotifications": true
+  "chat.enableTodoList": false,
+  "chat.disableInheritingDefaultResources": true,
+  "mcp.loadedBefore": true
 }

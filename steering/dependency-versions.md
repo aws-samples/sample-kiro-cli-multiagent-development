@@ -1,7 +1,3 @@
----
-inclusion: always
----
-
 # Dependency Versions
 
 ## New Dependencies

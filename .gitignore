@@ -1,2 +1,7 @@
 extensions/
 .DS_Store
+telemetry/
+flywheel-log.jsonl
+flywheel-corrections.jsonl
+specs/
+issues/

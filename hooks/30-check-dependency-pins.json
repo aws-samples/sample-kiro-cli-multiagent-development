@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "check-dependency-pins",
+      "description": "Block writes that add unpinned dependency versions to package.json, requirements.txt, pyproject.toml, or Cargo.toml. Reads the content, text, and newStr shapes because different write tools send different field names.",
+      "trigger": "PreToolUse",
+      "matcher": "fs_write|write|str_replace|fs_append",
+      "action": {
+        "type": "command",
+        "command": ".kiro/hooks/scripts/check-dependency-pins.sh"
+      },
+      "timeout": 10
+    }
+  ]
+}

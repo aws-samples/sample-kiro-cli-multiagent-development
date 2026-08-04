@@ -1,0 +1,10 @@
+{
+  "version": "v1",
+  "hooks": [
+    { "name": "guard-destructive-commands",
+      "description": "Block dangerous shell commands that could cause irreversible damage",
+      "trigger": "PreToolUse",
+      "matcher": "shell|execute_bash|execute_cmd|run_command",
+      "action": { "type": "command", "command": ".kiro/hooks/scripts/guard-destructive-commands.sh" },
+      "timeout": 10, "enabled": true } ]
+}

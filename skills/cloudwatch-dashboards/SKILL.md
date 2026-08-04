@@ -178,7 +178,7 @@ cw.GraphWidget(
 
 - **Too many metrics on one dashboard** — if you need to scroll, split it
 - **Dashboards without alarms** — dashboards are for context, alarms are for detection
-- **Stale dashboards** — update when features ship or retire; add as a task in specs
+- **Stale dashboards** — update when features ship or retire; add as a task in plans
 - **No text context** — always include headers, ownership, and runbook links
 - **Raw counts without rates** — "500 errors" means nothing without "out of 100K requests"
 - **Missing period alignment** — use consistent periods across widgets for correlation

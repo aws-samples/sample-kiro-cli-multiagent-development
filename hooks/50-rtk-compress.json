@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "rtk-compress",
+      "description": "Compress output of read-only rtk-supported shell commands before it enters context",
+      "trigger": "PreToolUse",
+      "matcher": "shell|execute_bash|execute_cmd|run_command",
+      "action": { "type": "command", "command": ".kiro/hooks/scripts/rtk-compress.sh" },
+      "timeout": 60,
+      "enabled": true
+    }
+  ]
+}

@@ -1,7 +1,3 @@
----
-inclusion: always
----
-
 # Project Dependency Isolation
 
 ## Principle

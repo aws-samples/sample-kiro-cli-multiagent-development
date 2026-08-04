@@ -1,0 +1,9 @@
+{
+  "version": "v1",
+  "hooks": [
+    { "name": "git-context",
+      "description": "Inject git status summary into agent context",
+      "trigger": "UserPromptSubmit",
+      "action": { "type": "command", "command": ".kiro/hooks/scripts/git-context.sh" },
+      "timeout": 10, "enabled": true } ]
+}

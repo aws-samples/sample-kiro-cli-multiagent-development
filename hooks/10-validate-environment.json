@@ -1,0 +1,9 @@
+{
+  "version": "v1",
+  "hooks": [
+    { "name": "validate-environment",
+      "description": "Validate required tools are installed and print versions",
+      "trigger": "SessionStart",
+      "action": { "type": "command", "command": ".kiro/hooks/scripts/validate-environment.sh" },
+      "timeout": 30, "enabled": true } ]
+}

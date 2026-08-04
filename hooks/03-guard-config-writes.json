@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "guard-config-writes",
+      "description": "Block shell commands that modify permissions.yaml or the hooks directory. Kiro's hardcoded settings/hooks write protection binds fs_write only, so shell is an unguarded equivalent — and permissions.yaml is hot-reloaded, making an edit immediate and user-global. Read-only inspection is not blocked.",
+      "trigger": "PreToolUse",
+      "matcher": "shell|execute_bash|execute_cmd|run_command",
+      "action": {
+        "type": "command",
+        "command": ".kiro/hooks/scripts/guard-config-writes.sh"
+      },
+      "timeout": 10
+    }
+  ]
+}

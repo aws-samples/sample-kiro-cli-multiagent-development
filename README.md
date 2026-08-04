@@ -1,10 +1,25 @@
 # Kiro CLI Multi-Agent Development Sample
 
-A sample configuration for multi-agent development workflows using [Kiro CLI](https://kiro.dev). Demonstrates how to set up a team of specialized AI agents that collaborate through a spec-driven development process.
+A sample configuration for multi-agent development workflows using [Kiro CLI](https://kiro.dev). Demonstrates how to set up a team of specialized AI agents that collaborate through a plan-driven development process.
 
-This entire setup — agents, steering rules, skills, and prompts — was built using Kiro CLI itself.
+## Why Multi-Agent?
 
-> **Disclaimer**: This repository is provided as an example only. The agent configurations, steering rules, and workflows are starting points — not production-ready defaults. You should review, adjust, and tailor them to fit your own project requirements, team conventions, and security posture.
+A single agent with one massive prompt works for small tasks. It breaks down on real projects:
+
+- **Context window frugality** — each agent carries only the context it needs. The docs agent doesn't load IaC verification rules; the coder doesn't carry review checklists. Smaller context means fewer hallucinations and lower cost.
+- **Blast radius containment** — a coder that goes off the rails can't merge its own work. The reviewer is a separate agent with a separate context that never saw the implementation reasoning, so it catches what self-review misses.
+- **Cost optimization through model tiering** — planning and review require strong reasoning (Opus). Implementation is mechanical (Sonnet). Documentation is low-risk prose (Haiku). You pay for intelligence only where it moves the needle.
+- **Parallelism** — independent tasks fan out to separate agents via `/spawn`. A six-file feature doesn't serialize through one agent's context; three coders work simultaneously.
+- **Independent evolvability** — tune one agent's prompt without destabilizing others. Add a new specialist (e.g., a performance reviewer) without touching the existing team.
+
+> **⚠️ This configuration is for Kiro CLI v3.** It uses the v3 model: standalone hook files
+> (`hooks/*.json`), Markdown agent profiles, and capability-based `permissions.yaml`. Run sessions with
+> the v3 engine (`kiro-cli --v3`).
+>
+> The previous v2 configuration (JSON agents with embedded hooks, camelCase triggers) is archived on the
+> [cli-v2 branch](https://github.com/aws-samples/sample-kiro-cli-multiagent-development/tree/cli-v2).
+
+> **Disclaimer**: This repository is provided as an example only. The agent configurations, steering rules, and workflows are starting points, not production-ready defaults. You should review, adjust, and tailor them to fit your own project requirements, team conventions, and security posture.
 
 ## Overview
 
@@ -12,14 +27,22 @@ This repo provides a sample `.kiro` configuration with six agents that work toge
 
 | Agent | Role | Model |
 |-------|------|-------|
-| **architect** | Researches, designs specs, creates plans, delegates work | claude-opus-4-7 |
-| **coder** | Implements features and writes tests from specs | claude-sonnet-4.6 |
-| **ops** | Infrastructure, CI/CD, containers, and documentation | claude-haiku-4-5 |
-| **reviewer** | Reviews implementations for correctness, quality, and maintainability | claude-opus-4.6 |
-| **security-reviewer** | Reviews implementations exclusively for security vulnerabilities and misconfigurations | claude-opus-4-7 |
-| **docs** | Writes and updates documentation from completed spec work | claude-haiku-4.5 |
+| **architect** | Researches, designs plans, sequences work, delegates work | claude-opus-5 |
+| **reviewer** | Reviews implementations for correctness, quality, and maintainability | claude-opus-5 |
+| **security-reviewer** | Reviews implementations exclusively for security vulnerabilities and misconfigurations | claude-opus-5 |
+| **coder** | Implements features and writes tests from plans | claude-sonnet-4.6 |
+| **ops** | Infrastructure, CI/CD, containers, and documentation | claude-sonnet-4.6 |
+| **docs** | Writes and updates documentation from completed plan work | claude-haiku-4.5 |
 
-The `architect` agent orchestrates the workflow: it writes specs, breaks work into parallelized task groups, delegates to `coder` and `ops` for implementation via `/spawn`, then sends the results to `reviewer` and `security-reviewer` for feedback. Once reviews pass, `docs` updates the documentation. This loop continues until all groups are complete.
+> **Note:** This roster reflects the author's environment and the models available in it. Substitute a model available to you by editing each agent's `model:` field, and check `kiro-cli chat --list-models` for what your account offers. The tiering pattern matters more than these specific IDs. At the time of writing `claude-opus-5` is an experimental preview rather than generally available; `claude-opus-4.6`, `claude-sonnet-4.6`, `claude-sonnet-4`, `claude-haiku-4.5`, and `auto` are the stable choices.
+
+The `architect` agent orchestrates the workflow: it writes plans, breaks work into parallelized task groups, delegates to `coder` and `ops` for implementation via `/spawn`, then sends the results to `reviewer` and `security-reviewer` for feedback. Once reviews pass, `docs` updates the documentation. This loop continues until all groups are complete.
+
+### Cost Considerations
+
+A typical `standard`-depth feature runs through: architect (Opus, planning) → coder/ops (Sonnet, implementation) → reviewer (Opus) → security-reviewer (Opus) → docs (Haiku). That's 3-4 Opus-tier calls, 1-2 Sonnet calls, and 1 Haiku call per feature cycle.
+
+For lower-ceremony work, use `prototype` depth (skips the code-review requirement, and the security review too when no auth or data boundary is crossed). `patch` depth produces no plan at all and routes bug fixes to the `diagnose` flow — but it still runs both review gates, so it is cheaper in artifacts rather than in scrutiny. The [depth system](docs/depth-levels.md) exists specifically to let you dial cost and ceremony to match the risk of what you're building.
 
 ## How It Works
 
@@ -27,179 +50,118 @@ The `architect` agent orchestrates the workflow: it writes specs, breaks work in
 architect (plan + research) → coder + ops (build in parallel via /spawn) → reviewer (verify) → security-reviewer (security audit) → docs (update documentation) → architect (next group or fix)
 ```
 
-1. **Plan** — `architect` researches the problem, looks up SDK/framework APIs from live documentation, writes a spec, and creates a task plan
+1. **Plan** — `architect` researches the problem, looks up SDK/framework APIs from live documentation, writes a plan, and creates a task plan. If the work touches authentication, authorization, secrets, data handling/migration, or network exposure, a security design review runs before implementation begins.
 2. **Build** — `architect` uses `/spawn` to delegate task groups to `coder` and/or `ops` subagents in parallel
 3. **Review** — `reviewer` analyzes the implementation for correctness and quality
 4. **Security Review** — after the general review passes, `security-reviewer` audits for vulnerabilities, misconfigurations, and compliance risks
 5. **Document** — `docs` updates README, architecture docs, and inline documentation to reflect the changes
 6. **Fix** — if either review fails, `architect` creates fix tasks and loops back to build
 
-Before any implementation begins, the architect conducts SDK/framework research using AWS documentation and Context7 to verify API signatures, import paths, and constructor conventions. Findings are written to the project's `docs/tech.md` so subagents code against verified contracts — not assumed APIs.
+Before any implementation begins, the architect conducts SDK/framework research using AWS documentation and Context7 to verify API signatures, import paths, and constructor conventions. Findings are written to a `docs/tech.md` in *your* project — created at runtime, not shipped in this repo — so subagents code against verified contracts, not assumed APIs.
+
+> **Worked example**: See [docs/example-plan/](docs/example-plan/) for a complete prototype-depth plan showing the full artifact lifecycle — spec, design review (2 cycles), code review (2 cycles), security review (2 cycles), and decisions log.
 
 ## Quick Start
 
-1. Install [Kiro CLI](https://kiro.dev)
+1. Install [Kiro CLI](https://kiro.dev) (v3 engine required)
 
-2. Clone this repo into a project's `.kiro/` directory (or use it standalone):
+2. From your project root, clone this repo into `.kiro/`:
 
 ```bash
+# run this from the project root, NOT from inside .kiro/
 git clone https://github.com/aws-samples/sample-kiro-cli-multiagent-development.git .kiro
-cd .kiro
-chmod +x hooks/*.sh
+chmod +x .kiro/hooks/scripts/*.sh .kiro/tools/*.sh
 ```
 
-3. Start a chat with the architect agent:
+3. Start a chat with the architect agent — **from the project root**, not from `.kiro/`:
 
 ```bash
-kiro-cli chat --agent architect
+kiro-cli --v3 chat --agent architect
 ```
 
-Everything works immediately — agent prompts, steering rules, skills, and hooks all use relative paths.
+The working directory matters. v3 discovers hooks at `<workspace>/.kiro/hooks/`, the agents declare their
+resources as `file://.kiro/steering/…`, and each hook manifest invokes its script as
+`.kiro/hooks/scripts/…`. All three are relative to where you start Kiro, so launching from inside
+`.kiro/` makes them resolve to `.kiro/.kiro/…` and silently find nothing.
 
-## Moving to Global Configuration
+Everything is workspace-relative by design, so the clone above is the whole install — no symlinks, no
+copying into your home directory. If you would rather run this as your global config for every project,
+see [Global config](docs/global-config.md), which lists the paths to rewrite.
 
-If you want these agents available across all your projects (not just this directory), promote the local config to `~/.kiro/`:
+> **Verify the hooks are live before trusting them.** Two hooks in this repo's history shipped broken and
+> silently exited 0 on every write while the README said they blocked things. Run
+> `bash .kiro/hooks/scripts/test-write-guards.sh` and the other suites after cloning; they exercise the
+> scripts directly. To confirm the *manifests* are wired, start a session and check that
+> `10-validate-environment` prints your tool versions at session start.
 
-```bash
-# Copy everything to global config
-cp -r agents/ steering/ skills/ hooks/ prompts/ settings/ ~/.kiro/
-chmod +x ~/.kiro/hooks/*.sh
+4. After a few sessions, run the [flywheel](docs/flywheel.md) to see what the system learned from your corrections:
 
-# Update agent prompt paths from relative to absolute
-# In each ~/.kiro/agents/*.json, change:
-#   "prompt": "file://agents/architect.md"
-# to:
-#   "prompt": "file:///Users/<you>/.kiro/agents/architect.md"
-
-# Update hook paths from local to global
-# In each ~/.kiro/agents/*.json, change:
-#   "command": ".kiro/hooks/check-secrets.sh"
-# to:
-#   "command": "~/.kiro/hooks/check-secrets.sh"
 ```
-
-Local `.kiro/` takes precedence over global `~/.kiro/` — remove the local copy after promoting to avoid conflicts.
+/flywheel
+```
 
 ## Repository Structure
 
 ```
-├── agents/                  # Agent definitions (JSON config + markdown prompts)
-│   ├── architect.json       # Architect agent config (MCP servers, tools, subagent access)
-│   ├── architect.md         # Architect agent system prompt
-│   ├── coder.json / .md     # Coder agent config and prompt
-│   ├── ops.json / .md       # Ops agent config and prompt
-│   ├── reviewer.json / .md  # Reviewer agent config and prompt
-│   ├── security-reviewer.json / .md  # Security reviewer config and prompt
-│   └── docs.json / .md     # Documentation agent config and prompt
-├── hooks/                   # Hook scripts — executed at agent lifecycle trigger points
-│   ├── check-dependency-pins.sh  # Block unpinned versions in dependency files
-│   ├── check-secrets.sh          # Block writes containing secrets or API keys
-│   ├── config-drift-guard.sh     # Block writes to config without approval
-│   ├── flywheel-log.sh           # Log turn summaries for flywheel analysis
-│   ├── git-context.sh            # Inject git status into agent context
-│   ├── guard-destructive-commands.sh  # Block dangerous shell commands
-│   └── validate-environment.sh   # Check required tools on agent spawn
-├── prompts/                 # Stored prompts — reusable workflows invoked by name
-│   ├── execute.md           # Resume and run the current spec to completion
-│   ├── scope.md             # Start a new spec discussion with the architect agent
-│   ├── diagnose.md          # Test-first bug fixing from issues/ reports
-│   └── flywheel.md          # Session analysis → config improvement loop
-├── steering/                # Global behavioral rules for all agents
-│   ├── spec-workflow.md     # Spec-driven development loop with dependency research
-│   ├── sdk-verification.md  # Universal SDK/framework API verification tiers
-│   ├── doc-research.md      # Mandatory documentation research before implementation
-│   ├── deploy-validation.md # Post-deploy smoke test requirements
-│   ├── non-interactive.md   # All commands must run non-interactively
-│   ├── virtual-environments.md  # Dependency isolation requirements
-│   ├── documentation.md     # Documentation requirements for every spec
-│   ├── testing.md           # Test-first development workflow
-│   ├── issue-tracking.md   # Issue documentation discipline for bugs and incidents
-│   └── latest-versions.md   # Use latest stable versions by default
-├── skills/                  # Domain-specific knowledge files
-│   ├── agentcore-patterns/  # Amazon Bedrock AgentCore runtime, gateway, and memory patterns
-│   ├── aws-cli/             # AWS CLI best practices
-│   ├── cloudwatch-dashboards/ # CloudWatch dashboard observability patterns
-│   ├── docker-build/        # Docker image building patterns
-│   ├── documentation/       # Technical writing patterns
-│   ├── git-workflow/        # Git operations and conventions
-│   └── shell-scripting/     # Bash/Zsh scripting patterns
-└── settings/
-    └── cli.json             # Kiro CLI settings (default agent, model)
+├── agents/                  # Agent profiles (Markdown: YAML frontmatter + system prompt)
+│   ├── architect.md         # Architect: config (model, MCP, tools) + prompt in one file
+│   ├── coder.md
+│   ├── ops.md
+│   ├── reviewer.md
+│   ├── security-reviewer.md
+│   └── docs.md
+├── hooks/                   # Standalone v3 hook manifests (apply to all agents in the workspace)
+│   ├── 00-guard-destructive-commands.json
+│   ├── 01-check-secrets.json
+│   ├── 02-guard-secret-reads.json
+│   ├── 03-guard-config-writes.json
+│   ├── 10-validate-environment.json
+│   ├── 20-git-context.json
+│   ├── 30-check-dependency-pins.json
+│   ├── 50-rtk-compress.json
+│   └── scripts/             # Hook implementation scripts + their test suites
+├── tools/                   # Not hooks — gate helpers and static checks you run directly
+│   ├── check-hook-paths.sh            # Hook manifests point at scripts that exist (+ `--self-test`)
+│   ├── mirror-to-public.sh            # Maintainer sync: private -> this sample, with divergences protected
+│   ├── check-review-verdict.sh        # The review/security/design gate's `Verify` command
+│   ├── check-steering-allocation.sh   # Per-agent steering allocation (+ `--self-test`)
+│   ├── check-rule-copies.sh           # Minimalism-ladder copies in sync (+ `--self-test`)
+│   └── test-check-review-verdict.sh   # 26 cases pinning the verdict parser
+├── settings/
+│   ├── cli.json             # Kiro CLI feature toggles (thinking, subagents, context indicator)
+│   └── permissions.yaml     # Capability-based permission policy
+├── steering/                # Rule files, no `inclusion:` frontmatter — delivered per agent via `resources:` (9 files)
+│   ├── delivery-workflow.md     # Plan-driven delivery loop with 4 depth levels
+│   ├── cli-execution.md     # RTK compression + AWS discover-via-MCP/execute-via-CLI
+│   ├── doc-research.md      # SDK/framework API verification before implementation
+│   ├── minimalism.md        # Write the least code that fully works (YAGNI ladder)
+│   ├── testing.md           # Test-first development with depth scaling
+│   └── ...                  # (4 more: artifact-locations, virtual-environments, documentation, dependency-versions)
+├── skills/                  # Domain-specific capability and workflow skills (13 total)
+│   ├── design/              # Interactive plan drafting
+│   ├── execute/             # Resume and run the current plan
+│   ├── diagnose/            # Test-first bug fixing
+│   ├── flywheel/            # Analyze sessions → propose config improvements
+│   └── ...                  # (harvest-debt + 8 capability skills)
+└── docs/                    # Detailed documentation
+    └── example-plan/        # Complete worked example (prototype-depth plan + all review artifacts)
 ```
 
 ## Key Concepts
 
-**Agents** define who does what. Each agent has a JSON config (tools, MCP servers, model) and a markdown prompt (role, constraints, workflow).
+| Concept | What it is |
+|---------|------------|
+| **Agents** | Who does what. Each is a single `.md` file: YAML frontmatter (model, tools, MCP, resources) + system prompt body. |
+| **Steering** | 9 rule files. The orchestrator loads all of them plus any project-level `.kiro/steering/`; each subagent loads an explicit subset — see [agent design](docs/agent-design.md). |
+| **Slash commands** | `/spawn`, `/goal`, and `/<skill-name>` are Kiro CLI features, not files in this repo — you will not find a `commands/` directory. `/spawn` delegates to subagents, `/goal` runs a self-verifying loop ([details](docs/depth-levels.md)), and a manual skill is invoked as `/<its-name>`. |
+| **Skills** | Domain knowledge agents reference. Workflow skills (`design`, `execute`, `diagnose`, `flywheel`, `harvest-debt`) are invoked by name; capability skills are consulted as needed. |
+| **Plans** | Runtime artifacts in `.kiro/delivery/YYYY-MM-DD-<slug>/`. Contain design decisions, task plans, reviews. Declare a [depth level](docs/depth-levels.md) that scales ceremony. |
+| **Hooks** | Lifecycle triggers ([details](docs/hooks.md)). Fire on file save, tool use, session start, etc. Two action types: shell commands (control via exit code) or agent prompts (injected context). |
+| **Permissions** | Capability-based rules ([details](docs/permissions.md)). `deny > ask > allow`. Hot-reloaded. |
 
-**Steering** files are global rules that apply to all agents. They enforce consistency — like requiring non-interactive execution, dependency isolation, or mandatory SDK verification before writing code.
+### The Flywheel (Self-Improvement Loop)
 
-**Skills** are domain-specific knowledge that agents can reference. They provide patterns and best practices for specific tools and technologies.
-
-**Specs** are created at runtime in `.kiro/specs/YYYY-MM-DD-<slug>/` and contain the design decisions, task plans, review findings, and decision logs for each piece of work. Date-prefixed slugs ensure chronological ordering.
-
-**Prompts** are stored workflows that you invoke by name. Unlike agent prompts (which define an agent's role), stored prompts are reusable task definitions — like scripts for the agent. See [The Flywheel](#the-flywheel) below for an example.
-
-**Hooks** are scripts that execute at agent lifecycle trigger points — before/after tool use, on agent spawn, on user prompt submit, and when the assistant finishes responding. They enable enforcement (blocking unsafe operations), logging (collecting data for the flywheel), and guardrails (preventing config drift). See [Hooks](#hooks) below.
-
-**Issues** are tracked in `issues/YYYY-MM-DD-<slug>/` at the project root. Each issue has a `report.md` (problem description, reproduction, investigation) and a `summary.md` (root cause, fix, prevention) written after resolution.
-
-## Steering Rules
-
-| Rule | Purpose |
-|------|---------|
-| `spec-workflow.md` | Defines the full plan → build → review loop with parallel task groups, mandatory dependency research, mandatory final documentation group, and issue tracking |
-| `sdk-verification.md` | Tiered API verification — Tier 1 (always verify signatures, ARNs, imports) and Tier 2 (deep verify for alpha/unfamiliar SDKs) |
-| `doc-research.md` | Mandates using AWS documentation search and Context7 to look up live docs before writing implementation code |
-| `deploy-validation.md` | Every deploy script must include a post-deploy smoke test; exit non-zero on failure |
-| `non-interactive.md` | All commands must run without user prompts — pass flags, provide all inputs via arguments |
-| `virtual-environments.md` | Project dependency isolation per language (venv, node_modules, cargo, go mod) |
-| `documentation.md` | Every non-trivial change must include documentation updates; mandatory final group in every spec |
-| `testing.md` | Test-first development — define tests before or alongside implementation |
-| `issue-tracking.md` | Every bug fix or incident must be documented in `issues/` with report and summary |
-| `latest-versions.md` | Pin dependency versions, 7-day quarantine on new releases, security patch exception |
-
-## Hooks
-
-Hooks are shell scripts that fire at specific points during agent execution. They receive JSON context via stdin and control behavior through exit codes: `0` to allow, `2` to block (preToolUse only), anything else to warn.
-
-### Enforcement hooks (preToolUse — block before damage)
-
-| Hook | Matcher | Purpose |
-|------|---------|---------|
-| `check-dependency-pins.sh` | `fs_write` | Blocks writes to `package.json`, `requirements.txt`, `pyproject.toml`, or `Cargo.toml` with unpinned versions. Protects against supply chain attacks. |
-| `check-secrets.sh` | `fs_write` | Blocks writes containing AWS keys, private keys, GitHub/Slack tokens, or generic API key patterns. Allowlists `.md` files and placeholder values. |
-| `config-drift-guard.sh` | `fs_write` | Blocks writes to steering/skills/agents config directories. Prevents agents from silently modifying their own configuration. Bypass with `KIRO_ALLOW_CONFIG_WRITES=1`. |
-| `guard-destructive-commands.sh` | `execute_bash` | Blocks `rm -rf /`, `DROP TABLE`, `terraform destroy` (without `-target`), `git push --force` to protected branches, and `kubectl delete namespace` on critical namespaces. |
-
-### Context hooks (agentSpawn / userPromptSubmit — inject information)
-
-| Hook | Trigger | Purpose |
-|------|---------|---------|
-| `validate-environment.sh` | `agentSpawn` | Checks that required tools are installed (python3, git, node, aws, docker, cargo) and prints versions. Exits non-zero only if critical tools are missing. |
-| `git-context.sh` | `userPromptSubmit` | Injects a one-line git summary (branch, staged/modified/untracked counts, last commit) into agent context. Silent no-op outside git repos. |
-
-### Observability hooks (stop — log after the fact)
-
-| Hook | Trigger | Purpose |
-|------|---------|---------|
-| `flywheel-log.sh` | `stop` | Logs turn summaries to `~/.kiro/flywheel-log.jsonl` for the [flywheel prompt](#the-flywheel). |
-
-All log files use `0o600` permissions and 10MB rotation. Enforcement hooks are applied to agents that write code (architect, coder, ops). Context and observability hooks are applied to all agents.
-
-## Prompts
-
-Prompts are reusable workflows you invoke by name during a chat session. Type `/prompts <name>` (or `@<name>`) to run one.
-
-| Prompt | Command | Purpose |
-|--------|---------|---------|
-| `execute` | `/prompts execute` | Resume and run the current spec — delegates task groups, runs reviews, loops until done |
-| `scope` | `/prompts scope` | Start a new spec discussion — gathers requirements interactively, writes spec and task plan |
-| `diagnose` | `/prompts diagnose` | Test-first bug fixing — reads `issues/` reports, writes a failing test, then fixes the code to pass it |
-| `flywheel` | `/prompts flywheel` | Analyzes recent sessions for correction patterns and proposes config improvements |
-
-### The Flywheel
-
-The `prompts/flywheel.md` prompt turns your session history into configuration improvements. Every time you correct the agent — "no, I meant...", "try again but...", "stop, use X instead" — that's a signal. The flywheel reads recent session logs, identifies correction patterns, cross-references your existing steering/skills/agent configs, and proposes targeted changes to prevent recurrence.
+The system learns from your corrections. Every time you redirect the agent ("no, use X instead", "try again but...") that's a signal. The [flywheel skill](docs/flywheel.md) scans session transcripts, identifies correction patterns, and proposes targeted config changes to prevent recurrence.
 
 ```
 Sessions ──▶ Corrections ──▶ Patterns ──▶ Config changes
@@ -207,92 +169,30 @@ Sessions ──▶ Corrections ──▶ Patterns ──▶ Config changes
     └──────────── better behavior ────────────┘
 ```
 
-It works in five phases:
+Single-agent workflows forget between sessions. The flywheel encodes lessons into durable config so the same mistake doesn't recur.
 
-1. **Session analysis** — scans `~/.kiro/sessions/cli/*.jsonl` for correction events (explicit corrections, cancelled turns, repeated instructions, frustration signals)
-2. **Pattern recognition** — groups corrections by theme, filters out one-offs, focuses on patterns across 2+ sessions
-3. **Cross-reference** — checks existing steering docs, skills, and agent prompts for coverage gaps or weak rules
-4. **Propose changes** — writes a structured report with evidence (quoted user messages) and draft config content
-5. **Interactive review** — walks through each proposal for your approval before applying
+## Detailed Documentation
 
-Run it periodically — weekly works well — or whenever you notice the agent repeating a mistake you've already corrected:
-
-```bash
-kiro-cli chat
-# then type: /prompts flywheel
-```
-
-Each approved change makes the next run's report shorter. Over time, the agent accumulates your preferences and conventions as persistent configuration rather than ephemeral context.
-
-## Agent JSON Configuration
-
-Each agent JSON file supports these fields:
-
-| Field | Purpose |
-|-------|---------|
-| `name` | Agent identifier |
-| `description` | Human-readable role description |
-| `prompt` | Path to the markdown system prompt |
-| `mcpServers` | MCP server configurations (HTTP or stdio) |
-| `tools` | Tool access pattern (`"*"` for all) |
-| `toolAliases` | Custom tool name mappings |
-| `allowedTools` | Explicit tool allowlist |
-| `resources` | File and skill resource patterns |
-| `hooks` | Lifecycle hooks (pre/post actions) |
-| `toolsSettings` | Tool-specific config (e.g., subagent access) |
-| `useLegacyMcpJson` | Whether to use legacy MCP config format |
-| `model` | AI model to use |
-
-## Subagent Limitations
-
-When agents run as subagents (delegated by the architect), some tools are not available in the subagent runtime:
-
-| Available | Not Available |
-|-----------|---------------|
-| `read`, `write`, `shell` | `web_search`, `web_fetch` |
-| `code` (symbol search, references) | `use_aws` (AWS CLI) |
-| MCP tools | `grep`, `glob` |
-| | `thinking` |
-
-Subagents can still execute AWS CLI commands via the `shell` tool, but won't have the structured `use_aws` tool. Plan your agent prompts accordingly.
-
-## MCP Servers
-
-This configuration uses the following MCP servers:
-
-| Server | Source | Used By |
-|--------|--------|---------|
-| [aws-knowledge-mcp-server](https://knowledge-mcp.global.api.aws) | AWS (official) | All agents |
-| [awslabs.document-loader-mcp-server](https://github.com/awslabs/mcp) | AWS Labs (official) | architect |
-| [awslabs.aws-iac-mcp-server](https://github.com/awslabs/mcp) | AWS Labs (official) | architect, coder, ops |
-| [context7](https://github.com/upstash/context7) | Upstash (open source) | architect, coder, reviewer, security-reviewer |
-| [deepwiki](https://mcp.deepwiki.com) | DeepWiki (public) | architect |
-
-Context7 provides live documentation lookup for any library or framework. DeepWiki provides AI-powered Q&A against GitHub repositories. Together with the AWS documentation servers, these give agents access to current API references instead of relying on training data.
-
-## Experimental Features (Optional)
-
-This configuration ships with GA (generally available) features only. To enhance the experience, you can opt into these experimental features:
-
-```bash
-# Knowledge management — persistent context storage with semantic search
-kiro-cli settings chat.enableKnowledge true
-
-# Context usage indicator — shows context window usage percentage in prompt
-kiro-cli settings chat.enableContextUsageIndicator true
-```
-
-These features may change or be removed. See [Experimental Features](https://kiro.dev/docs/cli/experimental/) for details.
+| Topic | Link |
+|-------|------|
+| Plan depth levels (patch, prototype, standard, production) | [docs/depth-levels.md](docs/depth-levels.md) |
+| Hooks reference (triggers, exit codes, coverage, test suites) | [docs/hooks.md](docs/hooks.md) |
+| Permissions deep-dive (capabilities, patterns, scope) | [docs/permissions.md](docs/permissions.md) |
+| The flywheel (self-improvement loop) | [docs/flywheel.md](docs/flywheel.md) |
+| Observability and debugging | [docs/observability.md](docs/observability.md) |
+| Agent design decisions (model tiering, steering allocation, cost) | [docs/agent-design.md](docs/agent-design.md) |
+| MCP server configuration | [docs/mcp-servers.md](docs/mcp-servers.md) |
+| Moving to global configuration | [docs/global-config.md](docs/global-config.md) |
 
 ## Customization
 
-- **Add agents**: Create a new `<name>.json` and `<name>.md` in `agents/`, then add the agent name to `architect.json`'s `toolsSettings.subagent.availableAgents` array
-- **Add steering rules**: Drop a markdown file in `steering/` — all agents will follow it
-- **Add skills**: Create a `<name>/SKILL.md` in `skills/` — agents reference these for domain knowledge
-- **Add prompts**: Drop a markdown file in `prompts/` — reusable workflows you can invoke by name during a chat session
-- **Add hooks**: Create executable scripts in `hooks/` and reference them in agent JSON configs under the appropriate trigger (`preToolUse`, `postToolUse`, `stop`, `agentSpawn`, `userPromptSubmit`)
-- **Change models**: Edit the `model` field in each agent's JSON config. Available GA models: `auto`, `claude-opus-4-7`, `claude-opus-4.6`, `claude-sonnet-4.6`, `claude-sonnet-4.0`, `claude-haiku-4-5`
-- **Change default agent**: Edit `chat.defaultAgent` in `settings/cli.json`
+- **Add agents**: Create a new `<name>.md` in `agents/` with YAML frontmatter + system prompt
+- **Add steering rules**: Drop a markdown file in `steering/` with **no `inclusion:` frontmatter**, then add it to the `resources:` list of each agent that needs it. `inclusion: manual` is never delivered and `inclusion: always` goes to every agent — see [agent design](docs/agent-design.md). Only the orchestrator uses a glob, so a new file reaches it automatically and reaches no subagent until you list it. Run `bash tools/check-steering-allocation.sh` after editing.
+- **Add skills**: Create a `<name>/SKILL.md` in `skills/` with frontmatter (`name` and `description`)
+- **Add hooks**: Create a `hooks/<NN-name>.json` manifest (and a script in `hooks/scripts/` for command actions)
+- **Adjust permissions**: Edit `settings/permissions.yaml` (`deny > ask > allow`)
+- **Change models**: Edit the `model` field in each agent's frontmatter. Run `kiro-cli chat --list-models` to see available options.
+- **Change the default agent**: pass `--agent <name>` when starting a session. `settings/cli.json` ships feature toggles only — there is no `defaultAgent` or model key in this configuration.
 
 ## Changelog
 

@@ -6,6 +6,15 @@ documentation, we greatly value feedback and contributions from our community.
 Please read through this document before submitting any issues or pull requests to ensure we have all the necessary
 information to effectively respond to your bug report or contribution.
 
+## Adding to the Configuration
+
+When adding agents, steering rules, skills, or hooks, follow the naming framework so file types are inferable from names:
+
+- **Workflow skills** (invoked by name): bare imperative verbs — `design`, `execute`, `diagnose`, `flywheel`, `harvest-debt`
+- **Capability skills** (consulted as needed): `<domain>-<activity>` format — `cli-execution`, `git-workflow`, `iac-verification`, `docker-build`, `documentation`
+- **Steering rules** (always-on): bare domain nouns — `minimalism`, `testing`, `spec-workflow`, `dependency-versions`
+- **Agents**: descriptive names — `architect`, `coder`, `reviewer`
+- **Hooks**: numeric prefix + descriptive name — `00-guard-destructive-commands.json`, `50-rtk-compress.json`
 
 ## Reporting Bugs/Feature Requests
 
