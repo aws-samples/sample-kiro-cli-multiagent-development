@@ -4,7 +4,7 @@
 # The first two cases are the reproductions of the original defect: with
 # `grep -i 'verdict.*pass'`, both opened the review gate.
 #
-# Usage: bash hooks/scripts/test-check-review-verdict.sh
+# Usage: bash tools/test-check-review-verdict.sh
 # Exit 0 = all cases correct.
 
 set -uo pipefail
@@ -156,6 +156,146 @@ probe 1 "template placeholder then a real FAIL"        "### Verdict: PASS | FAIL
 
 ## Cycle 1
 ### Verdict: FAIL"
+
+echo
+echo "cycle budget (exit 3 = spent; stop and escalate):"
+probe 3 "3rd cycle FAILs -> budget spent, not another plain FAIL" \
+"## Cycle 1
+### Verdict: FAIL
+
+## Cycle 2
+### Verdict: FAIL
+
+## Cycle 3
+### Verdict: FAIL"
+probe 3 "cycle 4 open with findings -> already over budget" \
+"## Cycle 1
+### Verdict: FAIL
+
+## Cycle 2
+### Verdict: FAIL
+
+## Cycle 3
+### Verdict: FAIL
+
+## Cycle 4
+### Critical
+- [a.py:1] still broken"
+probe 3 "cycle 5 PASS cannot launder a spent budget" \
+"## Cycle 1
+### Verdict: FAIL
+
+## Cycle 2
+### Verdict: FAIL
+
+## Cycle 3
+### Verdict: FAIL
+
+## Cycle 4
+### Verdict: FAIL
+
+## Cycle 5
+### Verdict: PASS"
+probe 2 "3rd cycle still open (no verdict yet) is within budget -> no verdict, not budget" \
+"## Cycle 1
+### Verdict: FAIL
+
+## Cycle 2
+### Verdict: FAIL
+
+## Cycle 3
+### Critical
+- [a.py:1] under review"
+probe 1 "2nd consecutive FAIL is a plain FAIL, budget intact" \
+"## Cycle 1
+### Verdict: FAIL
+
+## Cycle 2
+### Verdict: FAIL"
+probe 0 "budget resets per group: group 1 PASS then 2 fresh cycles" \
+"## Cycle 1
+### Verdict: FAIL
+
+## Cycle 2
+### Verdict: FAIL
+
+## Cycle 3 — group 1 done
+### Verdict: PASS
+
+## Cycle 1 — group 2
+### Verdict: FAIL
+
+## Cycle 2 — group 2
+### Verdict: PASS"
+probe 3 "budget resets, then the new group also spends its 3" \
+"## Cycle 1
+### Verdict: PASS
+
+## Cycle 1 — group 2
+### Verdict: FAIL
+
+## Cycle 2 — group 2
+### Verdict: FAIL
+
+## Cycle 3 — group 2
+### Verdict: FAIL"
+probe 3 "design-gate heading form counts toward the budget too" \
+"## Security Design Review — Cycle 1
+### Verdict: FAIL
+
+## Security Design Review — Cycle 2
+### Verdict: FAIL
+
+## Security Design Review — Cycle 3
+### Verdict: FAIL"
+probe 1 "a quoted PASS inside a fence must not reset the budget" \
+"## Cycle 1
+### Verdict: FAIL
+
+\`\`\`
+### Verdict: PASS
+\`\`\`
+
+## Cycle 2
+### Verdict: FAIL"
+probe 0 "a user Budget override reopens the gate for a later PASS" \
+"## Cycle 1
+### Verdict: FAIL
+
+## Cycle 2
+### Verdict: FAIL
+
+## Cycle 3
+### Verdict: FAIL
+
+Budget override: user approved two more cycles on 2026-08-04.
+
+## Cycle 4
+### Verdict: FAIL
+
+## Cycle 5
+### Verdict: PASS"
+probe 1 "an override does not turn a FAIL into a PASS" \
+"## Cycle 1
+### Verdict: FAIL
+
+Budget override: user approved one more cycle.
+
+## Cycle 2
+### Verdict: FAIL"
+probe 3 "an override inside a code fence is an example, not an authorisation" \
+"## Cycle 1
+### Verdict: FAIL
+
+## Cycle 2
+### Verdict: FAIL
+
+## Cycle 3
+### Verdict: FAIL
+
+\`\`\`
+Budget override: how the user would reopen this gate
+\`\`\`"
 
 echo
 echo "missing file must NOT pass:"

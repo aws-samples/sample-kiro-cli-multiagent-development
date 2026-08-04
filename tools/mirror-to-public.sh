@@ -37,6 +37,17 @@ SKIP=(
 
 is_skipped() { local f="$1"; for s in "${SKIP[@]}"; do [[ "$f" == "$s" ]] && return 0; done; return 1; }
 
+# Private path -> public path. The orchestrator's file is RENAMED, not just rewritten, so a
+# same-path existence check silently skipped it and the script reported zero drift while the
+# largest agent file diverged. Found when a steering change to the cycle budget mirrored
+# everywhere except the agent that enforces it.
+public_path() {
+    case "$1" in
+        agents/architect.md) echo "agents/architect.md" ;;
+        *) echo "$1" ;;
+    esac
+}
+
 # Apply every mapping that turns a private file into its public counterpart.
 #
 # The path mappings are scoped by file type on purpose. Applying them globally corrupts
@@ -47,12 +58,16 @@ is_skipped() { local f="$1"; for s in "${SKIP[@]}"; do [[ "$f" == "$s" ]] && ret
 transform() {
     local f="$1"
     local out
-    out=$(sed -e 's/SonofAnton/Architect/g' -e 's/sonofanton/architect/g' "$f")
+    out=$(sed -e 's/Architect/Architect/g' -e 's/architect/architect/g' "$f")
 
     case "$f" in
         agents/*.md)
-            # Agent resource lists: private is a global install, public is cloned to <project>/.kiro
-            out=$(printf '%s\n' "$out" | sed -e 's|file://~/\.kiro/steering/|file://.kiro/steering/|g')
+            # Per-file steering entries: private is a global install, public is cloned to
+            # <project>/.kiro. The `**/*.md` glob is exempt — both trees deliberately declare it in
+            # BOTH forms so the config works cloned or installed, and rewriting it collapsed the two
+            # lines into a duplicate that dropped the home form. check-steering-allocation.sh
+            # requires both and caught it.
+            out=$(printf '%s\n' "$out" | sed -e '\|steering/\*\*/\*\.md|!s|file://~/\.kiro/steering/|file://.kiro/steering/|g')
             ;;
         hooks/*.json)
             # Hook manifests invoke their scripts relative to the workspace root in the public tree
@@ -91,11 +106,14 @@ if [[ "${1:-}" == "--self-test" ]]; then
         else printf '  FAIL   %s — must not contain %s\n' "$1" "$4"; fail=1; fi
     }
     echo "Self-test: mirror-to-public.sh"
-    check  "orchestrator name"          steering/x.md 'delegate to sonofanton now' 'delegate to architect now'
-    check  "gate command path"          steering/x.md 'bash ~/.kiro/tools/check-review-verdict.sh x' 'bash .kiro/tools/check-review-verdict.sh x'
+    check  "orchestrator name"          steering/x.md 'delegate to architect now' 'delegate to architect now'
+    check  "gate command path"          steering/x.md 'bash .kiro/tools/check-review-verdict.sh x' 'bash .kiro/tools/check-review-verdict.sh x'
     check  "agent steering prefix"      agents/coder.md '  - file://~/.kiro/steering/testing.md' '  - file://.kiro/steering/testing.md'
+    check  "dual-form glob is preserved" agents/architect.md '  - file://.kiro/steering/**/*.md
+  - file://~/.kiro/steering/**/*.md' '  - file://.kiro/steering/**/*.md
+  - file://~/.kiro/steering/**/*.md'
     check  "hook script path"           hooks/00-x.json '"command": "~/.kiro/hooks/scripts/x.sh"' '"command": ".kiro/hooks/scripts/x.sh"'
-    check  "case-statement repair"      tools/check-steering-allocation.sh '        sonofanton|architect) orchestrator="$f" ;;' '        architect) orchestrator="$f" ;;'
+    check  "case-statement repair"      tools/check-steering-allocation.sh '        architect|architect) orchestrator="$f" ;;' '        architect) orchestrator="$f" ;;'
     refute "checker fixtures preserved" tools/check-steering-allocation.sh "        local hpfx='file://~/.kiro/steering'" "hpfx='file://.kiro/steering'"
     refute "steering prose untouched"   steering/x.md 'the home form is file://~/.kiro/steering/x.md' 'file://.kiro/steering/x.md'
     for s in "${SKIP[@]}"; do
@@ -104,6 +122,12 @@ if [[ "${1:-}" == "--self-test" ]]; then
     done
     if is_skipped "steering/testing.md"; then echo "  FAIL   testing.md must NOT be skipped"; fail=1
     else echo "  ok     a normal file is not skipped"; fi
+    if [[ "$(public_path agents/architect.md)" == "agents/architect.md" ]]; then
+        echo "  ok     the orchestrator file is mapped to its renamed public counterpart"
+    else echo "  FAIL   agents/architect.md must map to agents/architect.md"; fail=1; fi
+    if [[ "$(public_path steering/testing.md)" == "steering/testing.md" ]]; then
+        echo "  ok     every other path maps to itself"
+    else echo "  FAIL   unmapped paths must pass through unchanged"; fail=1; fi
     echo
     [[ $fail -eq 0 ]] && { echo "Self-test OK"; exit 0; }
     echo "Self-test FAILED"; exit 1
@@ -118,17 +142,19 @@ echo
 drift=0 copied=0 skipped=0
 cd "$PRIVATE" || exit 1
 while IFS= read -r f; do
-    [[ -f "$PUBLIC/$f" ]] || continue          # public-only or private-only files are not this tool's job
+    p="$(public_path "$f")"
+    [[ -f "$PUBLIC/$p" ]] || continue          # public-only or private-only files are not this tool's job
     if is_skipped "$f"; then
         printf '  skip   %s\n' "$f"; skipped=$((skipped+1)); continue
     fi
-    if transform "$f" | cmp -s - "$PUBLIC/$f"; then continue
+    if transform "$f" | cmp -s - "$PUBLIC/$p"; then continue
     fi
     drift=$((drift+1))
+    label="$f"; [[ "$p" != "$f" ]] && label="$f -> $p"
     if [[ "$MODE" == "--apply" ]]; then
-        transform "$f" > "$PUBLIC/$f"; printf '  synced %s\n' "$f"; copied=$((copied+1))
+        transform "$f" > "$PUBLIC/$p"; printf '  synced %s\n' "$label"; copied=$((copied+1))
     else
-        printf '  DRIFT  %s\n' "$f"
+        printf '  DRIFT  %s\n' "$label"
     fi
 done < <(git ls-files | grep -E '\.(md|sh|json|yaml)$' | grep -vE '^delivery/|^issues/')
 

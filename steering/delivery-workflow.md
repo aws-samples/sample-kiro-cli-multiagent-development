@@ -353,7 +353,7 @@ Every plan MUST include a review gate after all implementation groups complete. 
 - [ ] Code review of all implementation groups | `.kiro/delivery/<slug>/review.md`
   - **Accept**: Reviewer has written findings to `review.md` with verdict PASS. Zero critical findings, zero warnings.
   - **Verify**: `bash .kiro/tools/check-review-verdict.sh .kiro/delivery/<slug>/review.md` (exit 0 only if the LATEST verdict is PASS; a stale earlier PASS or an unfilled `PASS | FAIL` placeholder does not open the gate)
-  - **Constraints**: Do NOT proceed to the next group until this passes. Maximum 3 review cycles — escalate to user if still failing. **Never wrap this gate in `/goal`** — its value comes from a fresh-context agent that did not write the code, and a self-verifying loop would be grading its own homework. No `Goal` field on gate tasks, ever.
+  - **Constraints**: Do NOT proceed to the next group until this passes. Three cycles per gate, per group — when a 3rd cycle FAILs the check exits 3, which means stop and escalate to the user, not open a cycle 4. A 4th cycle is a workflow violation; decreasing severity and findings confined to your own test scaffolding are not exceptions. **Never wrap this gate in `/goal`** — its value comes from a fresh-context agent that did not write the code, and a self-verifying loop would be grading its own homework. No `Goal` field on gate tasks, ever.
 ```
 
 **Mandatory security-review gate task template:**
@@ -363,7 +363,7 @@ Every plan MUST include a review gate after all implementation groups complete. 
 - [ ] Security review of all implementation groups | `.kiro/delivery/<slug>/security-review.md`
   - **Accept**: `security-reviewer` has written findings to `security-review.md` with verdict PASS. Zero critical findings, zero warnings.
   - **Verify**: `bash .kiro/tools/check-review-verdict.sh .kiro/delivery/<slug>/security-review.md` (same semantics as the review gate)
-  - **Constraints**: Runs ONLY after the general review returns PASS — these are sequential gates, never parallel. Maximum 3 cycles, then escalate to the user. Never wrap in `/goal`.
+  - **Constraints**: Runs ONLY after the general review returns PASS — these are sequential gates, never parallel. Three cycles, then stop and escalate; exit 3 from the check means the budget is spent, not that another cycle is due. Never wrap in `/goal`.
 ```
 
 **Why checking the verdict is sufficient for the `Accept` criteria.** `Accept` demands zero criticals and
@@ -380,6 +380,11 @@ Its behaviour is pinned by `tools/test-check-review-verdict.sh` (26 cases).
 
 The same prohibition applies to the security-review gate. A verdict is a judgment, not a command exit
 code, so it can never be a `/goal` stop condition — see *Goal-loop tasks* above.
+
+**Exit codes.** `0` PASS · `1` FAIL, fix and run the next cycle · `2` no usable verdict (missing file,
+unfilled placeholder, or a cycle with findings but no verdict recorded) · `3` **cycle budget spent —
+stop and escalate.** Treating 3 as "another FAIL" and opening one more cycle is the specific violation
+the code exists to prevent; see *Loop Safeguards*.
 
 ### Mandatory Final Group: Documentation Update
 
@@ -607,5 +612,20 @@ The loop stops when ALL of the following are true:
 Suggestions do NOT block completion — log them for future improvement.
 
 ### Loop Safeguards
-- Maximum 3 review cycles per group. If still failing after 3, escalate to the user with a summary of unresolved criticals.
+- **Three review cycles per gate, per group. A 4th is a workflow violation, not a judgment call.**
+  When a 3rd cycle records FAIL, the budget is spent: stop, and hand the user a summary of the
+  unresolved findings. `check-review-verdict.sh` exits **3** at that point rather than 1, so the
+  boundary arrives as a distinct signal instead of another "keep fixing".
+- These are **not** exceptions, and each has been used verbatim by an agent to justify a 4th cycle:
+  - "severity is decreasing across cycles"
+  - "the remaining findings are only in test scaffolding I added, not the core change"
+  - "one more cycle purely to verify, then I'll stop"
+  - "I'm past the limit but I'll be upfront with the user about it" — **disclosure is not
+    authorisation.** Announcing an overrun does not convert it into an approved one.
+- A cycle that arrives at PASS after the budget was blown does not settle the gate. By cycle 4 a
+  loop is often adjusting its own tests toward green, which converts a FAIL into a PASS without
+  fixing anything. The check latches for this reason: only the user reopens a spent gate, by
+  recording a `Budget override:` line in the review file.
+- Escalating at 3 is the *successful* outcome of the safeguard. Three failed cycles means the loop
+  is not converging, and a human deciding what to do next is cheaper than a 5th cycle.
 - Log each decision made during fixes in `decisions.md` to prevent re-litigation.

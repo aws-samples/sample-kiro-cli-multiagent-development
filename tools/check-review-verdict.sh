@@ -35,9 +35,18 @@
 #   - discard any candidate offering both outcomes (an unfilled template placeholder)
 #   - exit 0 on PASS, 1 on FAIL, 2 if no usable verdict exists (missing file, template never
 #     filled in, or open cycle with no verdict). "No verdict" must never read as approval.
+#   - exit 3 when the 3-cycle budget is spent. This exists because prose could not enforce it:
+#     in two observed sessions an agent ran cycles 4 and 5, reasoning "severity has decreased",
+#     "the remaining issues are just in scaffolding I added", and "I'll be upfront with the user
+#     about exceeding the cycle count". The mechanical cause is that a 3rd failing cycle returned
+#     exit 1 — byte-identical to cycles 1 and 2 — so nothing in the signal distinguished "fix it"
+#     from "you are out of budget, stop". A distinct code and message mark that boundary.
 #
-# Usage: bash hooks/scripts/check-review-verdict.sh <path-to-review.md>
-# Test:  bash hooks/scripts/test-check-review-verdict.sh
+# The budget counts cycles since the last recorded PASS, not cycles in the file, so a multi-group
+# plan appending to one review.md gets a fresh budget per group instead of tripping on group 2.
+#
+# Usage: bash tools/check-review-verdict.sh <path-to-review.md>
+# Test:  bash tools/test-check-review-verdict.sh
 
 set -uo pipefail
 
@@ -88,6 +97,50 @@ drop_placeholders() {
 }
 
 VERDICT=$(grep -iE "$STRICT_RE" <<<"$SCOPE" | drop_placeholders | tail -1)
+
+# Cycles since the last recorded PASS, plus a latch for "the budget was blown at some point".
+# A declared PASS resets the running count, so the budget is per group rather than per file:
+# group 1 ending in PASS does not spend group 2's budget. It does NOT clear the latch, because a
+# PASS arriving in cycle 5 must not retroactively authorise cycles 4 and 5 — that is the observed
+# failure, and by then an agent is often editing its own test scaffolding to reach green, which
+# launders a FAIL into a PASS.
+# Deliberately stricter than STRICT_RE in one direction only — a PASS this misses tightens the
+# budget (escalates early, safe), while a PASS it invents would loosen it (the original bug).
+# `Budget override:` grants a fresh 3-cycle budget from that point, so the gate is recoverable
+# once a human has weighed in — it clears the latch and resets the count, but never changes a verdict.
+# That line is agent-writable, like every verdict in this file: the tool enforces discipline, not
+# authorisation. Writing it unprompted is a flagrant, auditable act rather than a plausible
+# rationalisation, and that difference is the whole mechanism.
+read -r CYCLES_SINCE_PASS BUDGET_BLOWN OVERRIDDEN <<<"$(awk '
+{
+    l = tolower($0)
+    if (l ~ /^[ \t]*#+[ \t]*.*cycle/) { c++; if (c > 3) blown = 1; next }
+    if (l ~ /^[ \t]*#*[ \t]*\**[ \t]*verdict[^a-z]*pass([^a-z]|$)/ &&
+        l !~ /pass[ \t]*(\||\/|or)[ \t]*fail/ &&
+        l !~ /fail[ \t]*(\||\/|or)[ \t]*pass/) { c = 0 }
+    if (l ~ /budget[ \t]*override[ \t]*:/) { blown = 0; c = 0; ovr = 1 }
+}
+END { print c+0, blown+0, ovr+0 }' <<<"$BODY")"
+
+# Budget check, evaluated only on paths that are not a PASS — except the latch, which must also
+# catch a late PASS. Trips on a 3rd *completed* failure, or once a 4th cycle has been opened; an
+# open 3rd cycle with no verdict yet is still within budget and reports "no verdict" instead.
+budget_spent() {
+    echo "BUDGET SPENT: $1 in $FILE." >&2
+    echo "Stop. Escalate to the user with a summary of the unresolved findings." >&2
+    echo "Opening another cycle is a workflow violation, not a judgment call. Decreasing severity," >&2
+    echo "findings confined to test scaffolding you added, and 'one more cycle to verify' are not" >&2
+    echo "exceptions — and announcing the overrun does not authorise it." >&2
+    echo "Only the user can reopen this gate, by recording a 'Budget override:' line in the file." >&2
+    exit 3
+}
+if [[ "$BUDGET_BLOWN" == 1 ]]; then
+    budget_spent "more than 3 cycles have been opened without a PASS"
+fi
+if [[ -n "$VERDICT" ]] && grep -qiE '\bfail\b' <<<"$VERDICT" && [[ "$CYCLES_SINCE_PASS" -ge 3 ]]; then
+    budget_spent "$CYCLES_SINCE_PASS review cycles have now failed with no PASS"
+fi
+[[ "$OVERRIDDEN" == 1 ]] && echo "NOTE: a user Budget override is recorded in $FILE." >&2
 
 if [[ -z "$VERDICT" ]]; then
     # No declared verdict. A loose mention may still record a FAIL; it may never record a PASS.

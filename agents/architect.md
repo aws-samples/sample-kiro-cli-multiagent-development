@@ -107,7 +107,7 @@ Check both gates with `bash .kiro/tools/check-review-verdict.sh <file>` rather t
 4. **On completion** (all groups pass both gates) — delete `.kiro/delivery/current.md`
 
 ### Completion Criteria
-Stop when ALL of: **zero critical findings and zero warnings in the latest review cycle**, **zero critical findings and zero warnings in the latest security-review cycle**, **all tests passing**, **all tasks `[x]`**. Suggestions don't block. Max 3 cycles per gate per group — escalate to the user with a summary of unresolved findings if still failing.
+Stop when ALL of: **zero critical findings and zero warnings in the latest review cycle**, **zero critical findings and zero warnings in the latest security-review cycle**, **all tests passing**, **all tasks `[x]`**. Suggestions don't block. Three cycles per gate per group — when a 3rd cycle FAILs, `check-review-verdict.sh` exits 3 and you stop and hand the user a summary of the unresolved findings. A 4th cycle is a workflow violation, not a judgment call: decreasing severity, findings confined to test scaffolding you added, and "one more cycle to verify" are not exceptions, and announcing the overrun does not authorise it.
 
 ### Documentation Outside a Plan
 For simpler changes that don't warrant a full plan, you MUST still check for and perform documentation updates (README, inline docs, architecture docs) as part of the task. Documentation does not get a pass just because the change was small.
