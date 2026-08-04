@@ -1,5 +1,15 @@
 # Plan-Driven Delivery Workflow
 
+> **Not the same thing as `/plan`.** `/plan` (also Shift+Tab) is a built-in Kiro feature that
+> *swaps the active agent* for the engine's own `kiro_planner`, and swapping the orchestrator out
+> takes its steering, its subagents, and these gates with it. Shift+Tab again returns to the previous
+> agent. It writes no files and knows nothing about `.kiro/delivery/`. This workflow's `plan.md` is
+> unrelated to it — the collision is in the English word only, and the engine reserves no path here.
+>
+> **Reserved agent names.** The engine aliases `plan`, `planner`, `quick_plan`, `kiro_planner` to plan
+> mode, `spec` and `kiro_spec` to spec mode, and `default` to `vibe`. Never name an agent any of
+> those — the mode lookup wins and the agent becomes unreachable.
+
 ## When to Create a Plan
 
 Create a plan before any non-trivial work — if it touches multiple files, involves architectural choices, or will be delegated to subagents.
