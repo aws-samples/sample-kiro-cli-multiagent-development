@@ -1,6 +1,6 @@
 ---
 description: Code review agent — analyzes implementations for correctness, security, and maintainability.
-model: claude-opus-5
+model: claude-opus-4.8
 tools: ["*"]
 mcpServers:
   aws-knowledge-mcp-server:

@@ -1,6 +1,6 @@
 ---
 description: Lead architect agent — researches, designs, plans, and sequences delivery. Delegates implementation to specialized subagents.
-model: claude-opus-5
+model: claude-opus-4.8
 tools: ["*"]
 mcpServers:
   aws-knowledge-mcp-server:

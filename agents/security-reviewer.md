@@ -1,6 +1,6 @@
 ---
 description: Security review agent — analyzes implementations exclusively for vulnerabilities, misconfigurations, and compliance risks.
-model: claude-opus-5
+model: claude-opus-4.8
 tools: ["*"]
 mcpServers:
   aws-knowledge-mcp-server:
